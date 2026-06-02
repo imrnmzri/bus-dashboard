@@ -6,12 +6,6 @@
 
 Live bus tracking dashboard for RapidKL buses in Kuala Lumpur. Pin to your iPhone home screen for a native app experience.
 
-<p align="center">
-  <img src="assets/icon-512.png" alt="RapidKL Tracker" width="120" />
-</p>
-
----
-
 ## Features
 
 - **Live ETA** — Arrival times calculated from real-time bus GPS positions along route shapes, not just static schedules
