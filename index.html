@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="RapidKL">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="Live bus tracking for RapidKL buses in Kuala Lumpur">
+  <link rel="apple-touch-icon" href="assets/icon-180.png">
+  <link rel="manifest" href="manifest.json">
+
+  <title>RapidKL Bus Tracker</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.5.0/socket.io.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>RapidKL</h1>
+      <div id="status-bar">
+        <span class="status-dot" id="stat-static" title="Schedule"></span>
+        <span class="status-dot" id="stat-live" title="Live feed"></span>
+        <span class="status-dot" id="stat-match" title="Trip match"></span>
+      </div>
+      <div id="refresh-badge" title="v7">&#10227; --</div>
+    </header>
+
+    <section id="favorites-row">
+      <div id="favorites-pills"></div>
+      <button id="fav-add-btn" title="Save current route &amp; stop">+</button>
+    </section>
+
+    <main>
+      <section id="map-container">
+        <div id="map"></div>
+      </section>
+
+      <section id="controls">
+        <div class="select-wrapper">
+          <select id="route-select">
+            <option value="">Select a bus route</option>
+          </select>
+        </div>
+        <div class="select-wrapper">
+          <select id="stop-select" disabled>
+            <option value="">First select a route</option>
+          </select>
+        </div>
+      </section>
+
+      <section id="time-card">
+        <div class="empty-state" id="empty-state">
+          <div class="icon">&#128652;</div>
+          <div class="label">Select a route to begin</div>
+          <div class="hint">Choose a bus route above to see live positions and next stop times</div>
+        </div>
+
+        <div class="clock-panel" id="clock-panel" style="display:none">
+          <div class="clock-label">Next Arrival</div>
+          <div class="clock-time" id="clock-time">--:--</div>
+          <div class="clock-ampm" id="clock-ampm"></div>
+          <div class="clock-badge" id="clock-badge">
+            <span class="badge-dot"></span>
+            <span class="badge-text">--</span>
+          </div>
+        </div>
+
+        <div class="stop-info" id="stop-info" style="display:none">
+          <span class="stop-name" id="stop-name"></span>
+          <span class="stop-distance" id="stop-distance"></span>
+          <span class="bus-count" id="bus-count"></span>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="spinner"></div>
+    <p id="loading-text">Syncing schedule data...</p>
+  </div>
+
+  <div class="error-toast" id="error-toast"></div>
+
+  <script src="js/gtfs-static.js?v=7"></script>
+  <script src="js/favorites.js?v=7"></script>
+  <script src="js/live-socket.js?v=7"></script>
+  <script src="js/scheduler.js?v=7"></script>
+  <script src="js/map.js?v=7"></script>
+  <script src="js/ui.js?v=7"></script>
+  <script src="js/app.js?v=7"></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        var promises = [];
+        for (var i = 0; i < registrations.length; i++) {
+          promises.push(registrations[i].unregister());
+        }
+        return Promise.all(promises);
+      }).then(function() {
+        return navigator.serviceWorker.register('/sw.js?v=7');
+      }).then(function() {
+        console.log('[sw] v6 registered');
+      }).catch(function(e) {
+        console.warn('[sw] Registration:', e.message);
+      });
+    }
+  </script>
+</body>
+</html>
