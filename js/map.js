@@ -18,9 +18,9 @@
       preferCanvas: true
     }).setView([3.139, 101.6869], 13);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> | &copy; <a href="https://carto.com/attributions">CARTO</a>'
     }).addTo(map);
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -44,7 +44,7 @@
     }
 
     var line = L.polyline(latlngs, {
-      color: '#2563eb',
+      color: '#e85d04',
       weight: 3.5,
       opacity: 0.85,
       smoothFactor: 1,
@@ -52,11 +52,8 @@
       lineJoin: 'round'
     }).addTo(routeLayer);
 
-    L.circleMarker(latlngs[0], { radius: 5, color: '#2563eb', fillColor: '#2563eb', fillOpacity: 0.9, weight: 0 }).addTo(routeLayer);
-    L.circleMarker(latlngs[latlngs.length - 1], { radius: 5, color: '#2563eb', fillColor: '#2563eb', fillOpacity: 0.9, weight: 0 }).addTo(routeLayer);
-
-    currentShapeBounds = line.getBounds();
-    map.fitBounds(currentShapeBounds, { padding: [50, 50], maxZoom: 15 });
+    L.circleMarker(latlngs[0], { radius: 5, color: '#e85d04', fillColor: '#e85d04', fillOpacity: 0.9, weight: 0 }).addTo(routeLayer);
+    L.circleMarker(latlngs[latlngs.length - 1], { radius: 5, color: '#e85d04', fillColor: '#e85d04', fillOpacity: 0.9, weight: 0 }).addTo(routeLayer);
   }
 
   function clearRoute() {
@@ -84,7 +81,7 @@
 
       var marker = L.circleMarker([s.lat, s.lon], {
         radius: isSelected ? 6 : 4,
-        fillColor: isSelected ? '#2563eb' : '#94a3b8',
+        fillColor: isSelected ? '#e85d04' : '#64748b',
         color: 'white',
         weight: 1.5,
         fillOpacity: 1,
@@ -99,6 +96,14 @@
       });
 
       marker.addTo(stopLayer);
+    }
+
+    if (!selectedStopId && stops.length > 0) {
+      var bounds = L.latLngBounds();
+      for (var k = 0; k < stops.length; k++) {
+        if (stops[k].lat && stops[k].lon) bounds.extend([stops[k].lat, stops[k].lon]);
+      }
+      if (bounds.isValid()) map.fitBounds(bounds, { padding: [20, 20], maxZoom: 17 });
     }
   }
 
@@ -116,7 +121,7 @@
 
       var marker = L.circleMarker([s.lat, s.lon], {
         radius: isSelected ? 6 : 4,
-        fillColor: isSelected ? '#2563eb' : '#94a3b8',
+        fillColor: isSelected ? '#e85d04' : '#64748b',
         color: 'white',
         weight: 1.5,
         fillOpacity: 1,
@@ -134,7 +139,7 @@
       marker.addTo(stopLayer);
 
       if (isSelected) {
-        map.panTo([s.lat, s.lon], { animate: true, duration: 0.5 });
+        map.setView([s.lat, s.lon], 16, { animate: true, duration: 0.5 });
       }
     }
   }
@@ -158,16 +163,15 @@
       if (latlng[0] === 0 && latlng[1] === 0) continue;
 
       var rotation = v.bearing || 0;
-      var label = v.vehicle_label || v.bus_no || '';
 
       var html = '<div class="bus-marker-inner" style="transform:rotate(' + rotation + 'deg)">' +
         '<svg width="32" height="32" viewBox="0 0 32 32">' +
-        '<circle cx="16" cy="16" r="11" fill="white" stroke="#2563eb" stroke-width="2.5"/>' +
-        '<polygon points="16,8 20,16 16,14 12,16" fill="#2563eb"/>' +
+        '<circle cx="16" cy="16" r="11" fill="white" stroke="#e85d04" stroke-width="2.5"/>' +
+        '<polygon points="16,8 20,16 16,14 12,16" fill="#e85d04"/>' +
         '</svg></div>';
 
       var popupContent = '<div class="bus-popup">' +
-        '<strong>' + label + '</strong>' +
+        '<strong>' + (v.vehicle_label || v.bus_no || '') + '</strong>' +
         '<br>GPS: ' + (v.gps_time || '--') +
         '<br>Speed: ' + (v.speed || 0) + ' km/h' +
         '</div>';
@@ -178,16 +182,6 @@
       });
 
       marker.bindPopup(popupContent, { className: 'bus-popup-wrapper', closeButton: false, offset: [0, -16] });
-
-      if (label) {
-        marker.bindTooltip(label, {
-          direction: 'bottom',
-          offset: [0, 16],
-          permanent: true,
-          className: 'bus-tooltip'
-        });
-      }
-
       marker.addTo(busLayer);
     }
   }
