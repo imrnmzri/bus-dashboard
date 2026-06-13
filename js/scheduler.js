@@ -81,53 +81,15 @@
     return { distance: bestCum, lat: bestLat, lng: bestLng, snapDist: bestDist, seg: bestSeg };
   }
 
-  // Lightweight shape fingerprint for cache keys
-  function shapeFingerprint(shape) {
-    var fp = '';
-    for (var i = 0; i < Math.min(10, shape.length); i++) {
-      fp += shape[i].lat.toFixed(4) + shape[i].lng.toFixed(4);
-    }
-    return fp;
-  }
-
-  // Track per-bus progress along a shape and return EMA-smoothed speed (km/h).
-  function getSmoothedSpeed(busId, busDistKm, shape, staticData) {
-    if (!staticData._busProgress) staticData._busProgress = {};
-
-    var fp = shapeFingerprint(shape);
-    var key = busId + '|' + fp;
-    var now = Date.now();
-
-    var entry = staticData._busProgress[key];
-
-    if (!entry) {
-      staticData._busProgress[key] = { dist: busDistKm, time: now, speed: 0 };
-      return 0;
-    }
-
-    var elapsedH = (now - entry.time) / 3600000;
-    if (elapsedH <= 0) return entry.speed || 0;
-
-    var actualSpeed = 0;
-    if (busDistKm > entry.dist) {
-      actualSpeed = (busDistKm - entry.dist) / elapsedH;
-      // Exponential moving average, alpha = 0.3
-      entry.speed = 0.3 * actualSpeed + 0.7 * (entry.speed || actualSpeed);
-    }
-
-    entry.dist = busDistKm;
-    entry.time = now;
-
-    return entry.speed || 0;
-  }
-
   // Get the cumulative distance of a stop along the shape, using stop-sequence
   // order to constrain the projection (monotonic — stops are projected in order).
   function getStopDistanceOnShape(routeId, stopId, shape, cumDist, staticData) {
-    // Cache on the staticData object; one entry per (route + shape)
     if (!staticData._stopDistCache) staticData._stopDistCache = {};
 
-    var fp = shapeFingerprint(shape);
+    var fp = '';
+    for (var fi = 0; fi < Math.min(10, shape.length); fi++) {
+      fp += shape[fi].lat.toFixed(4) + shape[fi].lng.toFixed(4);
+    }
     var key = routeId + '|' + fp;
 
     if (staticData._stopDistCache[key]) {
@@ -240,10 +202,7 @@
       if (busSnap.snapDist > 0.3) continue; // 300m max snap distance
 
       var remainingKm = stopDist - busSnap.distance;
-
-      var busId = v.vehicle_label || v.id || '';
-      var smoothSpeed = getSmoothedSpeed(busId, busSnap.distance, shape, staticData);
-      var speedKmh = smoothSpeed > 3 ? smoothSpeed : (v.speed > 3 ? v.speed : 25); // fallback to GPS or 25 km/h
+      var speedKmh = v.speed > 3 ? v.speed : 25;
 
       // Apply a road factor: shape distance * 1.2 to account for deviations
       var etaSeconds = (remainingKm * 1.2 / speedKmh) * 3600;
@@ -253,7 +212,8 @@
           seconds: etaSeconds,
           vehicleLabel: v.vehicle_label || '',
           remainingKm: remainingKm,
-          speedKmh: speedKmh
+          speedKmh: speedKmh,
+          busDistance: busSnap.distance
         };
       }
     }
@@ -273,7 +233,8 @@
       busCount: 1,
       isProjected: false,
       stopLat: stop.lat,
-      stopLng: stop.lon
+      stopLng: stop.lon,
+      bestBusDistance: best.busDistance
     };
   }
 
@@ -461,8 +422,24 @@
     return Math.max(0, Math.round(diff / 60));
   }
 
+  // Return all stop -> shape distance mappings for a route
+  function getAllStopDistances(routeId, staticData, stopId) {
+    var shape = getRouteShape(routeId, staticData, stopId);
+    if (!shape) return {};
+    var cumDist = buildCumDist(shape);
+    var stops = getStopsForRoute(routeId, staticData);
+    var result = {};
+    for (var i = 0; i < stops.length; i++) {
+      var sid = stops[i].stop_id;
+      var d = getStopDistanceOnShape(routeId, sid, shape, cumDist, staticData);
+      if (d !== null && d !== undefined) result[sid] = d;
+    }
+    return result;
+  }
+
   window.RapidKL = window.RapidKL || {};
   window.RapidKL.getNextStop = getNextStop;
   window.RapidKL.getStopsForRoute = getStopsForRoute;
   window.RapidKL.getTimeUntil = getTimeUntil;
+  window.RapidKL.getAllStopDistances = getAllStopDistances;
 })();

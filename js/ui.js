@@ -11,13 +11,11 @@
     dot.className = 'status-dot ' + state;
   }
 
-  function showEmptyState(show) {
-    var empty = el('empty-state');
-    var clock = el('clock-panel');
-    var info = el('stop-info');
-    if (empty) empty.style.display = show ? '' : 'none';
-    if (clock) clock.style.display = show ? 'none' : '';
-    if (info) info.style.display = show ? 'none' : '';
+  function showLoading(show, text) {
+    var overlay = el('loading-overlay');
+    var label = el('loading-text');
+    if (overlay) overlay.className = 'loading-overlay' + (show ? ' visible' : '');
+    if (label && text) label.textContent = text;
   }
 
   function populateStopDropdown(routeId) {
@@ -43,86 +41,101 @@
     }
   }
 
-  function updateClock(nextStop) {
+  function renderStopProgress(stops, selectedStopId, bestBusDistance, stopDistances) {
+    var html = '';
+    if (!stops || stops.length === 0) return '';
+
+    for (var i = 0; i < stops.length; i++) {
+      var sid = stops[i].stop_id;
+      var sd = stopDistances[sid];
+
+      var cls = 'progress-dot';
+      if (sid === selectedStopId) cls += ' selected';
+      if (bestBusDistance !== null && sd !== undefined && sd <= bestBusDistance) {
+        cls += ' passed';
+      }
+
+      html += '<span class="' + cls + '" title="' + (stops[i].name || sid) + '"></span>';
+    }
+
+    return html;
+  }
+
+  function updateBottomBar(nextStop, staticData) {
     var state = RapidKL.state;
 
     if (!state.static) {
       setStatus('stat-static', 'fail');
       setStatus('stat-live', 'fail');
       setStatus('stat-match', 'fail');
-      showEmptyState(true);
-      el('empty-state').querySelector('.label').textContent = 'Loading schedule...';
+      el('stop-name').textContent = 'Loading schedule...';
+      el('eta-text').textContent = '-- min';
+      el('eta-text').className = 'live';
+      el('bus-count').textContent = '';
+      el('stop-progress').innerHTML = '';
       return;
     }
+
     setStatus('stat-static', 'ok');
     setStatus('stat-live', state.vehicles && state.vehicles.length > 0 ? 'ok' : 'warn');
 
-    if (!state.selectedRouteId) {
-      showEmptyState(true);
-      el('empty-state').querySelector('.label').textContent = 'Select a route to begin';
+    var routeId = state.selectedRouteId;
+    var stopId = state.selectedStopId || null;
+
+    if (!routeId) {
+      el('stop-name').textContent = 'Select a route to begin';
+      el('eta-text').textContent = '-- min';
+      el('eta-text').className = 'live';
+      el('bus-count').textContent = '';
+      el('stop-progress').innerHTML = '';
       return;
     }
 
-    if (!nextStop) {
-      showEmptyState(true);
-      el('empty-state').querySelector('.label').textContent = 'No schedule available';
-      return;
+    var stops = RapidKL.getStopsForRoute(routeId, staticData);
+    var stopDistances = RapidKL.getAllStopDistances(routeId, staticData, stopId || undefined);
+    var bestBusDistance = null;
+
+    if (nextStop && !nextStop.isProjected) {
+      bestBusDistance = nextStop.bestBusDistance !== undefined ? nextStop.bestBusDistance : null;
     }
 
-    showEmptyState(false);
+    el('stop-progress').innerHTML = renderStopProgress(stops, stopId, bestBusDistance, stopDistances);
 
-    var timeEl = el('clock-time');
-    var ampmEl = el('clock-ampm');
-    var badgeEl = el('clock-badge');
-    var badgeText = badgeEl ? badgeEl.querySelector('.badge-text') : null;
+    if (!nextStop || !nextStop.arrivalSeconds) {
+      el('stop-name').textContent = stopId ? (nextStop && nextStop.stopName ? nextStop.stopName : 'No schedule') : 'Select a stop';
+      el('eta-text').textContent = '-- min';
+      el('eta-text').className = nextStop && nextStop.isProjected ? '' : 'live';
+      el('bus-count').textContent = '';
+      setStatus('stat-match', 'warn');
+      return;
+    }
 
     var mins = RapidKL.getTimeUntil(nextStop);
-    if (timeEl && mins >= 0) {
-      if (mins === 0) {
-        timeEl.textContent = 'NOW';
-        timeEl.style.fontSize = '52px';
-      } else {
-        timeEl.textContent = mins;
-        timeEl.style.fontSize = '';
-      }
-    }
-    if (ampmEl) ampmEl.textContent = mins === 0 ? '' : 'min';
+    el('stop-name').textContent = nextStop.stopName || '';
 
-    if (badgeEl) badgeEl.className = nextStop.isProjected ? 'clock-badge' : 'clock-badge live';
-    if (badgeText) badgeText.textContent = nextStop.isProjected ? 'Scheduled' : '\u25CF Live';
+    if (mins === 0) {
+      el('eta-text').textContent = 'NOW';
+    } else if (mins < 60) {
+      el('eta-text').textContent = '~' + mins + ' min';
+    } else {
+      el('eta-text').textContent = '~' + Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
+    }
+
+    el('eta-text').className = nextStop.isProjected ? '' : 'live';
 
     setStatus('stat-match', nextStop.arrivalSeconds > 0 ? 'ok' : 'warn');
 
-    var stopNameEl = el('stop-name');
-    if (stopNameEl) stopNameEl.textContent = nextStop.stopName || '';
-
-    var distanceEl = el('stop-distance');
-    if (distanceEl) {
-      if (!nextStop.isProjected && nextStop.vehicleLabel) {
-        distanceEl.textContent = 'Bus ' + nextStop.vehicleLabel + ' approaching';
-      } else if (nextStop.isProjected && nextStop.arrivalSeconds > 0) {
-        if (mins >= 60) {
-          distanceEl.textContent = 'in ~' + Math.floor(mins/60) + 'h ' + (mins%60) + 'm';
-        } else {
-          distanceEl.textContent = 'in ~' + mins + ' min';
-        }
-      } else {
-        distanceEl.textContent = '';
-      }
-    }
-
-    var busCountEl = el('bus-count');
-    if (busCountEl && nextStop.busCount > 0) {
-      busCountEl.textContent = nextStop.busCount + ' bus' + (nextStop.busCount !== 1 ? 'es' : '') + ' active';
-    } else if (busCountEl) {
-      busCountEl.textContent = '';
+    if (nextStop.busCount > 0) {
+      el('bus-count').textContent = nextStop.busCount + ' bus' + (nextStop.busCount !== 1 ? 'es' : '');
+    } else {
+      el('bus-count').textContent = '';
     }
   }
 
   function updateUI() {
     var state = RapidKL.state;
     if (!state.static) {
-      updateClock(null);
+      updateBottomBar(null, null);
       return;
     }
 
@@ -130,12 +143,12 @@
     var stopId = state.selectedStopId || null;
 
     if (!routeId) {
-      updateClock(null);
+      updateBottomBar(null, state.static);
       return;
     }
 
     var nextStop = RapidKL.getNextStop(routeId, stopId, state.vehicles, state.static);
-    updateClock(nextStop);
+    updateBottomBar(nextStop, state.static);
   }
 
   function startUI() {
@@ -145,18 +158,10 @@
     el('loading-overlay').className = 'loading-overlay';
   }
 
-  function showLoading(show, text) {
-    var overlay = el('loading-overlay');
-    var label = el('loading-text');
-    if (overlay) overlay.className = 'loading-overlay' + (show ? ' visible' : '');
-    if (label && text) label.textContent = text;
-  }
-
   window.RapidKL = window.RapidKL || {};
   window.RapidKL.updateUI = updateUI;
   window.RapidKL.startUI = startUI;
   window.RapidKL.populateStopDropdown = populateStopDropdown;
-  window.RapidKL.showEmptyState = showEmptyState;
   window.RapidKL.showLoading = showLoading;
   window.RapidKL.setStatus = setStatus;
 })();

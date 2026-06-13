@@ -79,6 +79,8 @@
         emit('route-changed', val);
         RapidKL.Favorites.setLast(val, null);
         renderFavorites();
+        var sc = val ? getStopsWithCoords(val) : [];
+        RapidKL.drawStops(sc, null);
         RapidKL.updateUI();
       }
     });
@@ -98,6 +100,7 @@
       state.selectedStopId = select.value || null;
       if (state.selectedRouteId) RapidKL.Favorites.setLast(state.selectedRouteId, state.selectedStopId);
       renderFavorites();
+      RapidKL.highlightStop(state.selectedStopId);
       RapidKL.updateUI();
     });
   }
@@ -111,6 +114,7 @@
       }
       state.selectedRouteId = routeId;
       RapidKL.populateStopDropdown(routeId);
+      var sc = getStopsWithCoords(routeId);
       if (ss && stopId) {
         setTimeout(function() {
           for (var j = 0; j < ss.options.length; j++) {
@@ -119,6 +123,7 @@
           state.selectedStopId = stopId;
           RapidKL.Favorites.setLast(routeId, stopId);
           renderFavorites();
+          RapidKL.drawStops(sc, stopId);
           RapidKL.updateUI();
           emit('route-changed', routeId);
         }, 100);
@@ -126,6 +131,7 @@
         state.selectedStopId = null;
         RapidKL.Favorites.setLast(routeId, null);
         renderFavorites();
+        RapidKL.drawStops(sc, null);
         RapidKL.updateUI();
         emit('route-changed', routeId);
       }
@@ -142,6 +148,16 @@
   function getStopLabel(stopId) {
     var s = state.static && state.static.stops ? state.static.stops[stopId] : null;
     return s ? s.name : stopId;
+  }
+
+  function getStopsWithCoords(routeId) {
+    if (!state.static || !state.static.stops) return [];
+    var stops = RapidKL.getStopsForRoute(routeId, state.static);
+    var stopsDb = state.static.stops;
+    return stops.map(function(s) {
+      var db = stopsDb[s.stop_id];
+      return db ? { stop_id: s.stop_id, name: s.name, lat: db.lat, lon: db.lon, order: s.order } : null;
+    }).filter(function(s) { return s !== null && s.lat !== 0; });
   }
 
   function renderFavorites() {

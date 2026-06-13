@@ -29,7 +29,7 @@
         <span class="status-dot" id="stat-live" title="Live feed"></span>
         <span class="status-dot" id="stat-match" title="Trip match"></span>
       </div>
-      <div id="refresh-badge" title="v8">&#10227; --</div>
+      <div id="refresh-badge" title="v9">&#10227; --</div>
     </header>
 
     <section id="favorites-row">
@@ -40,44 +40,28 @@
     <main>
       <section id="map-container">
         <div id="map"></div>
-      </section>
-
-      <section id="controls">
-        <div class="select-wrapper">
-          <select id="route-select">
-            <option value="">Select a bus route</option>
-          </select>
-        </div>
-        <div class="select-wrapper">
-          <select id="stop-select" disabled>
-            <option value="">First select a route</option>
-          </select>
-        </div>
-      </section>
-
-      <section id="time-card">
-        <div class="empty-state" id="empty-state">
-          <div class="icon">&#128652;</div>
-          <div class="label">Select a route to begin</div>
-          <div class="hint">Choose a bus route above to see live positions and next stop times</div>
-        </div>
-
-        <div class="clock-panel" id="clock-panel" style="display:none">
-          <div class="clock-label">Next Arrival</div>
-          <div class="clock-time" id="clock-time">--:--</div>
-          <div class="clock-ampm" id="clock-ampm"></div>
-          <div class="clock-badge" id="clock-badge">
-            <span class="badge-dot"></span>
-            <span class="badge-text">--</span>
+        <div id="map-overlay">
+          <div class="select-pill">
+            <select id="route-select">
+              <option value="">Select a bus route</option>
+            </select>
+          </div>
+          <div class="select-pill">
+            <select id="stop-select" disabled>
+              <option value="">First select a route</option>
+            </select>
           </div>
         </div>
-
-        <div class="stop-info" id="stop-info" style="display:none">
-          <span class="stop-name" id="stop-name"></span>
-          <span class="stop-distance" id="stop-distance"></span>
-          <span class="bus-count" id="bus-count"></span>
-        </div>
       </section>
+
+      <div id="bottom-bar">
+        <div id="stop-progress"></div>
+        <div id="bottom-info">
+          <span id="stop-name">Select a route to begin</span>
+          <span id="eta-text">-- min</span>
+          <span id="bus-count"></span>
+        </div>
+      </div>
     </main>
   </div>
 
@@ -88,13 +72,13 @@
 
   <div class="error-toast" id="error-toast"></div>
 
-  <script src="js/gtfs-static.js?v=8"></script>
-  <script src="js/favorites.js?v=8"></script>
-  <script src="js/live-socket.js?v=8"></script>
-  <script src="js/scheduler.js?v=8"></script>
-  <script src="js/map.js?v=8"></script>
-  <script src="js/ui.js?v=8"></script>
-  <script src="js/app.js?v=8"></script>
+  <script src="js/gtfs-static.js?v=9"></script>
+  <script src="js/favorites.js?v=9"></script>
+  <script src="js/live-socket.js?v=9"></script>
+  <script src="js/scheduler.js?v=9"></script>
+  <script src="js/map.js?v=9"></script>
+  <script src="js/ui.js?v=9"></script>
+  <script src="js/app.js?v=9"></script>
 
   <script>
     if ('serviceWorker' in navigator) {
@@ -105,9 +89,9 @@
         }
         return Promise.all(promises);
       }).then(function() {
-        return navigator.serviceWorker.register('/sw.js?v=7');
+        return navigator.serviceWorker.register('/sw.js?v=8');
       }).then(function() {
-        console.log('[sw] v6 registered');
+        console.log('[sw] v8 registered');
       }).catch(function(e) {
         console.warn('[sw] Registration:', e.message);
       });
