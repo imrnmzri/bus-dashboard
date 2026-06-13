@@ -114,11 +114,15 @@
 
     if (!targetTrip) return null;
 
-    // Project each stop in sequence order, monotonic (each stop ≥ previous)
+    // Project each stop in sequence order. Constrain search to a window
+    // around the expected position based on stop sequence fraction, to
+    // avoid jumping to the wrong pass on loop routes.
     var stopDists = {};
     var prevSeg = 0;
+    var totalKm = cumDist[cumDist.length - 1];
+    var totalStops = targetTrip.stop_times.length;
 
-    for (var si = 0; si < targetTrip.stop_times.length; si++) {
+    for (var si = 0; si < totalStops; si++) {
       var st = targetTrip.stop_times[si];
       var sid = st.stop_id;
       if (!sid) continue;
@@ -126,10 +130,53 @@
       var s = staticData.stops[sid];
       if (!s) continue;
 
-      var snap = closestOnShape(s.lat, s.lon, shape, cumDist, prevSeg);
+      var expectedDist = (si / totalStops) * totalKm;
+      var windowHalf = totalKm * 0.2;
+      var minDist = Math.max(0, expectedDist - windowHalf);
+      var maxDist = Math.min(totalKm, expectedDist + windowHalf);
 
-      stopDists[sid] = snap.distance;
-      prevSeg = snap.seg;
+      var wStart = prevSeg;
+      for (var wi = prevSeg; wi < cumDist.length; wi++) {
+        if (cumDist[wi] >= minDist) { wStart = wi; break; }
+      }
+
+      var wEnd = shape.length - 1;
+      for (var wi = wStart; wi < cumDist.length; wi++) {
+        if (cumDist[wi] > maxDist) { wEnd = wi - 1; break; }
+      }
+
+      var bestDist = Infinity;
+      var bestCum = prevSeg > 0 ? cumDist[prevSeg] : 0;
+      var bestSeg = wStart;
+
+      for (var i = wStart; i < Math.min(wEnd, shape.length - 1); i++) {
+        var aLat = shape[i].lat, aLng = shape[i].lng;
+        var bLat = shape[i + 1].lat, bLng = shape[i + 1].lng;
+
+        var dx = bLng - aLng, dy = bLat - aLat;
+        var segLenSq = dx * dx + dy * dy;
+
+        var t;
+        if (segLenSq === 0) { t = 0; }
+        else {
+          t = ((s.lon - aLng) * dx + (s.lat - aLat) * dy) / segLenSq;
+          if (t < 0) t = 0;
+          if (t > 1) t = 1;
+        }
+
+        var projLat = aLat + t * dy;
+        var projLng = aLng + t * dx;
+        var d = haversine(s.lat, s.lon, projLat, projLng);
+
+        if (d < bestDist) {
+          bestDist = d;
+          bestCum = cumDist[i] + t * (cumDist[i + 1] - cumDist[i]);
+          bestSeg = i;
+        }
+      }
+
+      stopDists[sid] = bestCum;
+      prevSeg = bestSeg;
     }
 
     staticData._stopDistCache[key] = stopDists;
