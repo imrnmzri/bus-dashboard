@@ -116,7 +116,7 @@ header h1 {
 
 #favorites-row {
   position: absolute;
-  top: 84px;
+  top: 104px;
   width: calc(100% - 20px);
   max-width: 480px;
   left: 50%;
