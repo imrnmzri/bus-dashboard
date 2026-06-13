@@ -74,7 +74,6 @@
       if (!s.lat || !s.lon) continue;
 
       var isSelected = selectedStopId && s.stop_id === selectedStopId;
-      var cls = 'stop-marker' + (isSelected ? ' selected' : '');
 
       var marker = L.circleMarker([s.lat, s.lon], {
         radius: isSelected ? 6 : 4,
