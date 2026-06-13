@@ -124,6 +124,7 @@
           RapidKL.Favorites.setLast(routeId, stopId);
           renderFavorites();
           RapidKL.drawStops(sc, stopId);
+          RapidKL.highlightStop(stopId);
           RapidKL.updateUI();
           emit('route-changed', routeId);
         }, 100);

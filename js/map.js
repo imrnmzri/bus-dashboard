@@ -164,7 +164,7 @@
       var html = '<div class="bus-marker-inner" style="transform:rotate(' + rotation + 'deg)">' +
         '<svg width="32" height="32" viewBox="0 0 32 32">' +
         '<circle cx="16" cy="16" r="12" fill="#fb923c"/>' +
-        '<polygon points="10,9 22,16 10,23" fill="white"/>' +
+        '<polygon points="16,6 20,16 16,14 12,16" fill="white"/>' +
         '</svg></div>';
 
       var popupContent = '<div class="bus-popup">' +
