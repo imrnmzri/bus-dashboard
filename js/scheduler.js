@@ -39,14 +39,17 @@
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
-  // Find closest point on a shape polyline, return cumulative distance from start
-  function closestOnShape(lat, lng, shape, cumDist) {
+  // Find closest point on a shape polyline, return cumulative distance from start.
+  // Optional startSeg constrains the search to shape indices >= startSeg.
+  function closestOnShape(lat, lng, shape, cumDist, startSeg) {
     var bestDist = Infinity;
     var bestCum = 0;
     var bestLat = shape[0].lat;
     var bestLng = shape[0].lng;
+    var bestSeg = startSeg || 0;
 
-    for (var i = 0; i < shape.length - 1; i++) {
+    var s = startSeg || 0;
+    for (var i = s; i < shape.length - 1; i++) {
       var aLat = shape[i].lat, aLng = shape[i].lng;
       var bLat = shape[i + 1].lat, bLng = shape[i + 1].lng;
 
@@ -71,22 +74,141 @@
         bestLat = projLat;
         bestLng = projLng;
         bestCum = cumDist[i] + t * (cumDist[i + 1] - cumDist[i]);
+        bestSeg = i;
       }
     }
 
-    return { distance: bestCum, lat: bestLat, lng: bestLng, snapDist: bestDist };
+    return { distance: bestCum, lat: bestLat, lng: bestLng, snapDist: bestDist, seg: bestSeg };
   }
 
-  // Get the shape for a route
-  function getRouteShape(routeId, staticData) {
-    if (!staticData || !staticData.shapes || !staticData.trips) return null;
+  // Get the cumulative distance of a stop along the shape, using stop-sequence
+  // order to constrain the projection (monotonic — stops are projected in order).
+  function getStopDistanceOnShape(routeId, stopId, shape, cumDist, staticData) {
+    if (!staticData._stopDistCache) staticData._stopDistCache = {};
+
+    var fp = '';
+    for (var fi = 0; fi < Math.min(10, shape.length); fi++) {
+      fp += shape[fi].lat.toFixed(4) + shape[fi].lng.toFixed(4);
+    }
+    var key = routeId + '|' + fp;
+
+    if (staticData._stopDistCache[key]) {
+      var cached = staticData._stopDistCache[key];
+      if (cached[stopId] !== undefined) return cached[stopId];
+    }
+
+    // Find a trip for this route whose shape matches and which contains the stop
+    var targetTrip = null;
     for (var tid in staticData.trips) {
-      if (staticData.trips[tid].route_id === routeId && staticData.trips[tid].shape_id) {
-        var s = staticData.shapes[staticData.trips[tid].shape_id];
-        if (s && s.length >= 2) return s;
+      var trip = staticData.trips[tid];
+      if (trip.route_id !== routeId) continue;
+      if (!trip.shape_id) continue;
+      if (!trip.stop_times || trip.stop_times.length === 0) continue;
+      if (staticData.shapes[trip.shape_id] !== shape) continue;
+
+      for (var sj = 0; sj < trip.stop_times.length; sj++) {
+        if (trip.stop_times[sj].stop_id === stopId) { targetTrip = trip; break; }
+      }
+      if (targetTrip) break;
+    }
+
+    if (!targetTrip) return null;
+
+    // Project each stop in sequence order. Constrain search to a window
+    // around the expected position based on stop sequence fraction, to
+    // avoid jumping to the wrong pass on loop routes.
+    var stopDists = {};
+    var prevSeg = 0;
+    var totalKm = cumDist[cumDist.length - 1];
+    var totalStops = targetTrip.stop_times.length;
+
+    for (var si = 0; si < totalStops; si++) {
+      var st = targetTrip.stop_times[si];
+      var sid = st.stop_id;
+      if (!sid) continue;
+
+      var s = staticData.stops[sid];
+      if (!s) continue;
+
+      var expectedDist = (si / totalStops) * totalKm;
+      var windowHalf = totalKm * 0.2;
+      var minDist = Math.max(0, expectedDist - windowHalf);
+      var maxDist = Math.min(totalKm, expectedDist + windowHalf);
+
+      var wStart = prevSeg;
+      for (var wi = prevSeg; wi < cumDist.length; wi++) {
+        if (cumDist[wi] >= minDist) { wStart = wi; break; }
+      }
+
+      var wEnd = shape.length - 1;
+      for (var wi = wStart; wi < cumDist.length; wi++) {
+        if (cumDist[wi] > maxDist) { wEnd = wi - 1; break; }
+      }
+
+      var bestDist = Infinity;
+      var bestCum = prevSeg > 0 ? cumDist[prevSeg] : 0;
+      var bestSeg = wStart;
+
+      for (var i = wStart; i < Math.min(wEnd, shape.length - 1); i++) {
+        var aLat = shape[i].lat, aLng = shape[i].lng;
+        var bLat = shape[i + 1].lat, bLng = shape[i + 1].lng;
+
+        var dx = bLng - aLng, dy = bLat - aLat;
+        var segLenSq = dx * dx + dy * dy;
+
+        var t;
+        if (segLenSq === 0) { t = 0; }
+        else {
+          t = ((s.lon - aLng) * dx + (s.lat - aLat) * dy) / segLenSq;
+          if (t < 0) t = 0;
+          if (t > 1) t = 1;
+        }
+
+        var projLat = aLat + t * dy;
+        var projLng = aLng + t * dx;
+        var d = haversine(s.lat, s.lon, projLat, projLng);
+
+        if (d < bestDist) {
+          bestDist = d;
+          bestCum = cumDist[i] + t * (cumDist[i + 1] - cumDist[i]);
+          bestSeg = i;
+        }
+      }
+
+      stopDists[sid] = bestCum;
+      prevSeg = bestSeg;
+    }
+
+    staticData._stopDistCache[key] = stopDists;
+    return stopDists[stopId];
+  }
+
+  // Get the shape for a route, preferring a trip that serves the given stop
+  function getRouteShape(routeId, staticData, stopId) {
+    if (!staticData || !staticData.shapes || !staticData.trips) return null;
+
+    var anyShape = null;
+
+    for (var tid in staticData.trips) {
+      if (staticData.trips[tid].route_id !== routeId) continue;
+      if (!staticData.trips[tid].shape_id) continue;
+
+      var s = staticData.shapes[staticData.trips[tid].shape_id];
+      if (!s || s.length < 2) continue;
+
+      if (!anyShape) anyShape = s;
+
+      if (stopId) {
+        var times = staticData.trips[tid].stop_times;
+        if (times) {
+          for (var j = 0; j < times.length; j++) {
+            if (times[j].stop_id === stopId) return s;
+          }
+        }
       }
     }
-    return null;
+
+    return anyShape;
   }
 
   // Precalculate cumulative distances for a shape
@@ -102,14 +224,16 @@
   function getLiveETA(selectedRouteId, selectedStopId, vehicles, staticData) {
     if (!selectedRouteId || !selectedStopId) return null;
 
-    var shape = getRouteShape(selectedRouteId, staticData);
+    var shape = getRouteShape(selectedRouteId, staticData, selectedStopId);
     if (!shape) return null;
 
     var cumDist = buildCumDist(shape);
     var stop = staticData.stops ? staticData.stops[selectedStopId] : null;
     if (!stop) return null;
 
-    var stopSnap = closestOnShape(stop.lat, stop.lon, shape, cumDist);
+    var stopDist = getStopDistanceOnShape(selectedRouteId, selectedStopId, shape, cumDist, staticData);
+    if (stopDist === null || stopDist === undefined) return null;
+
     var best = null;
 
     for (var i = 0; i < vehicles.length; i++) {
@@ -119,13 +243,13 @@
       var busSnap = closestOnShape(v.lat, v.lng, shape, cumDist);
 
       // Only consider buses approaching the stop (not past it)
-      if (busSnap.distance >= stopSnap.distance) continue;
+      if (busSnap.distance >= stopDist) continue;
 
       // Bus must be within ~100m of the shape to be considered on route
       if (busSnap.snapDist > 0.3) continue; // 300m max snap distance
 
-      var remainingKm = stopSnap.distance - busSnap.distance;
-      var speedKmh = v.speed > 3 ? v.speed : 25; // minimum 25 km/h for stopped buses
+      var remainingKm = stopDist - busSnap.distance;
+      var speedKmh = v.speed > 3 ? v.speed : 25;
 
       // Apply a road factor: shape distance * 1.2 to account for deviations
       var etaSeconds = (remainingKm * 1.2 / speedKmh) * 3600;
@@ -135,7 +259,8 @@
           seconds: etaSeconds,
           vehicleLabel: v.vehicle_label || '',
           remainingKm: remainingKm,
-          speedKmh: speedKmh
+          speedKmh: speedKmh,
+          busDistance: busSnap.distance
         };
       }
     }
@@ -155,7 +280,8 @@
       busCount: 1,
       isProjected: false,
       stopLat: stop.lat,
-      stopLng: stop.lon
+      stopLng: stop.lon,
+      bestBusDistance: best.busDistance
     };
   }
 
@@ -293,36 +419,33 @@
     return null;
   }
 
-  function getStopsForRoute(routeId, staticData) {
+  function getStopsForRoute(routeId, staticData, stopId) {
     if (!routeId || !staticData) return [];
     var stopMap = {}, orderMap = {};
-    var firstTrip = null;
+    var targetTrip = null;
 
     for (var tid in staticData.trips) {
-      if (staticData.trips[tid].route_id === routeId && staticData.trips[tid].stop_times && staticData.trips[tid].stop_times.length > 0) {
-        firstTrip = staticData.trips[tid];
-        break;
+      if (staticData.trips[tid].route_id !== routeId) continue;
+      if (!staticData.trips[tid].stop_times || staticData.trips[tid].stop_times.length === 0) continue;
+
+      if (!targetTrip) targetTrip = staticData.trips[tid];
+
+      if (stopId) {
+        for (var j = 0; j < staticData.trips[tid].stop_times.length; j++) {
+          if (staticData.trips[tid].stop_times[j].stop_id === stopId) {
+            targetTrip = staticData.trips[tid];
+            break;
+          }
+        }
       }
     }
-    if (!firstTrip) return [];
+    if (!targetTrip) return [];
 
-    for (var i = 0; i < firstTrip.stop_times.length; i++) {
-      var st = firstTrip.stop_times[i];
+    for (var i = 0; i < targetTrip.stop_times.length; i++) {
+      var st = targetTrip.stop_times[i];
       if (!st.stop_id || stopMap[st.stop_id]) continue;
       stopMap[st.stop_id] = true;
       orderMap[st.stop_id] = i;
-    }
-
-    for (var tid2 in staticData.trips) {
-      if (staticData.trips[tid2].route_id !== routeId) continue;
-      var times = staticData.trips[tid2].stop_times;
-      if (!times) continue;
-      for (var j = 0; j < times.length; j++) {
-        var sid = times[j].stop_id;
-        if (!sid || stopMap[sid]) continue;
-        stopMap[sid] = true;
-        orderMap[sid] = j;
-      }
     }
 
     var stops = staticData.stops;
@@ -343,8 +466,24 @@
     return Math.max(0, Math.round(diff / 60));
   }
 
+  // Return all stop -> shape distance mappings for a route
+  function getAllStopDistances(routeId, staticData, stopId) {
+    var shape = getRouteShape(routeId, staticData, stopId);
+    if (!shape) return {};
+    var cumDist = buildCumDist(shape);
+    var stops = getStopsForRoute(routeId, staticData, stopId);
+    var result = {};
+    for (var i = 0; i < stops.length; i++) {
+      var sid = stops[i].stop_id;
+      var d = getStopDistanceOnShape(routeId, sid, shape, cumDist, staticData);
+      if (d !== null && d !== undefined) result[sid] = d;
+    }
+    return result;
+  }
+
   window.RapidKL = window.RapidKL || {};
   window.RapidKL.getNextStop = getNextStop;
   window.RapidKL.getStopsForRoute = getStopsForRoute;
   window.RapidKL.getTimeUntil = getTimeUntil;
+  window.RapidKL.getAllStopDistances = getAllStopDistances;
 })();
