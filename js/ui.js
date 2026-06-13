@@ -91,7 +91,7 @@
       return;
     }
 
-    var stops = RapidKL.getStopsForRoute(routeId, staticData);
+    var stops = RapidKL.getStopsForRoute(routeId, staticData, stopId || undefined);
     var stopDistances = RapidKL.getAllStopDistances(routeId, staticData, stopId || undefined);
     var bestBusDistance = null;
 

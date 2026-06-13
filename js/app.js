@@ -114,7 +114,7 @@
       }
       state.selectedRouteId = routeId;
       RapidKL.populateStopDropdown(routeId);
-      var sc = getStopsWithCoords(routeId);
+      var sc = getStopsWithCoords(routeId, stopId || null);
       if (ss && stopId) {
         setTimeout(function() {
           for (var j = 0; j < ss.options.length; j++) {
@@ -151,9 +151,9 @@
     return s ? s.name : stopId;
   }
 
-  function getStopsWithCoords(routeId) {
+  function getStopsWithCoords(routeId, stopId) {
     if (!state.static || !state.static.stops) return [];
-    var stops = RapidKL.getStopsForRoute(routeId, state.static);
+    var stops = RapidKL.getStopsForRoute(routeId, state.static, stopId || undefined);
     var stopsDb = state.static.stops;
     return stops.map(function(s) {
       var db = stopsDb[s.stop_id];

@@ -121,7 +121,7 @@
     for (var si = 0; si < targetTrip.stop_times.length; si++) {
       var st = targetTrip.stop_times[si];
       var sid = st.stop_id;
-      if (!sid || stopDists[sid] !== undefined) continue;
+      if (!sid) continue;
 
       var s = staticData.stops[sid];
       if (!s) continue;
@@ -372,36 +372,33 @@
     return null;
   }
 
-  function getStopsForRoute(routeId, staticData) {
+  function getStopsForRoute(routeId, staticData, stopId) {
     if (!routeId || !staticData) return [];
     var stopMap = {}, orderMap = {};
-    var firstTrip = null;
+    var targetTrip = null;
 
     for (var tid in staticData.trips) {
-      if (staticData.trips[tid].route_id === routeId && staticData.trips[tid].stop_times && staticData.trips[tid].stop_times.length > 0) {
-        firstTrip = staticData.trips[tid];
-        break;
+      if (staticData.trips[tid].route_id !== routeId) continue;
+      if (!staticData.trips[tid].stop_times || staticData.trips[tid].stop_times.length === 0) continue;
+
+      if (!targetTrip) targetTrip = staticData.trips[tid];
+
+      if (stopId) {
+        for (var j = 0; j < staticData.trips[tid].stop_times.length; j++) {
+          if (staticData.trips[tid].stop_times[j].stop_id === stopId) {
+            targetTrip = staticData.trips[tid];
+            break;
+          }
+        }
       }
     }
-    if (!firstTrip) return [];
+    if (!targetTrip) return [];
 
-    for (var i = 0; i < firstTrip.stop_times.length; i++) {
-      var st = firstTrip.stop_times[i];
+    for (var i = 0; i < targetTrip.stop_times.length; i++) {
+      var st = targetTrip.stop_times[i];
       if (!st.stop_id || stopMap[st.stop_id]) continue;
       stopMap[st.stop_id] = true;
       orderMap[st.stop_id] = i;
-    }
-
-    for (var tid2 in staticData.trips) {
-      if (staticData.trips[tid2].route_id !== routeId) continue;
-      var times = staticData.trips[tid2].stop_times;
-      if (!times) continue;
-      for (var j = 0; j < times.length; j++) {
-        var sid = times[j].stop_id;
-        if (!sid || stopMap[sid]) continue;
-        stopMap[sid] = true;
-        orderMap[sid] = j;
-      }
     }
 
     var stops = staticData.stops;
@@ -427,7 +424,7 @@
     var shape = getRouteShape(routeId, staticData, stopId);
     if (!shape) return {};
     var cumDist = buildCumDist(shape);
-    var stops = getStopsForRoute(routeId, staticData);
+    var stops = getStopsForRoute(routeId, staticData, stopId);
     var result = {};
     for (var i = 0; i < stops.length; i++) {
       var sid = stops[i].stop_id;
