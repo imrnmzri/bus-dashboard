@@ -125,19 +125,19 @@ main {
   padding: 8px 14px;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
   flex-shrink: 0;
-  scrollbar-width: none;
 }
-#favorites-row::-webkit-scrollbar { display: none; }
 
 #favorites-pills {
   display: flex;
   gap: 6px;
   flex: 1;
   min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+#favorites-pills::-webkit-scrollbar { display: none; }
 
 .fav-pill {
   flex-shrink: 0;
