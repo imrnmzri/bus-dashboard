@@ -43,7 +43,7 @@
 
     var line = L.polyline(latlngs, {
       color: '#fb923c',
-      weight: 3.5,
+      weight: 5,
       opacity: 1,
       smoothFactor: 1,
       lineCap: 'round',
@@ -162,9 +162,9 @@
       var rotation = v.bearing || 0;
 
       var html = '<div class="bus-marker-inner" style="transform:rotate(' + rotation + 'deg)">' +
-        '<svg width="32" height="32" viewBox="0 0 32 32">' +
-        '<circle cx="16" cy="16" r="12" fill="#fb923c"/>' +
-        '<polygon points="16,6 20,16 16,14 12,16" fill="white"/>' +
+        '<svg width="36" height="36" viewBox="0 0 36 36">' +
+        '<circle cx="18" cy="18" r="13" fill="#fb923c"/>' +
+        '<polygon points="18,7 22.5,18 18,16 13.5,18" fill="white"/>' +
         '</svg></div>';
 
       var popupContent = '<div class="bus-popup">' +
@@ -174,7 +174,7 @@
         '</div>';
 
       var marker = L.marker(latlng, {
-        icon: L.divIcon({ className: 'bus-marker-icon', html: html, iconSize: [32, 32], iconAnchor: [16, 16] }),
+        icon: L.divIcon({ className: 'bus-marker-icon', html: html, iconSize: [36, 36], iconAnchor: [18, 18] }),
         zIndexOffset: 1000
       });
 

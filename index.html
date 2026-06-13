@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="RapidKL">
-  <meta name="theme-color" content="#090e14">
+  <meta name="theme-color" content="#080c12">
   <meta name="description" content="Live bus tracking for RapidKL buses in Kuala Lumpur">
   <link rel="apple-touch-icon" href="assets/icon-180.png">
   <link rel="manifest" href="manifest.json">
@@ -22,24 +22,20 @@
 </head>
 <body>
   <div id="app">
-    <header>
-      <h1>RapidKL</h1>
-      <div id="status-bar">
-        <span class="status-dot" id="stat-static" title="Schedule"></span>
-        <span class="status-dot" id="stat-live" title="Live feed"></span>
-        <span class="status-dot" id="stat-match" title="Trip match"></span>
-      </div>
-      <div id="refresh-badge" title="v9">&#10227; --</div>
-    </header>
-
-    <section id="favorites-row">
-      <div id="favorites-pills"></div>
-      <button id="fav-add-btn" title="Save current route &amp; stop">+</button>
-    </section>
-
     <main>
       <section id="map-container">
         <div id="map"></div>
+
+        <header>
+          <h1>RapidKL</h1>
+          <div id="status-bar">
+            <span class="status-dot" id="stat-static" title="Schedule"></span>
+            <span class="status-dot" id="stat-live" title="Live feed"></span>
+            <span class="status-dot" id="stat-match" title="Trip match"></span>
+          </div>
+          <div id="refresh-badge" title="v9">&#10227; --</div>
+        </header>
+
         <div id="map-overlay">
           <div class="select-pill">
             <select id="route-select">
@@ -51,6 +47,11 @@
               <option value="">First select a route</option>
             </select>
           </div>
+        </div>
+
+        <div id="favorites-row">
+          <div id="favorites-pills"></div>
+          <button id="fav-add-btn" title="Save current route &amp; stop">+</button>
         </div>
       </section>
 
