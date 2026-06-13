@@ -4,16 +4,16 @@
   --surface-card: rgba(18, 27, 44, 0.96);
   --surface-float: rgba(12, 19, 31, 0.88);
   --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-active: rgba(251, 146, 60, 0.45);
+  --border-active: rgba(96, 165, 250, 0.45);
   --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
-  --route-color: #fb923c;
-  --route-glow: rgba(251, 146, 60, 0.12);
+  --route-color: #60a5fa;
+  --route-glow: rgba(96, 165, 250, 0.12);
   --status-live: #34d399;
   --status-warn: #facc15;
   --stop-default: #64748b;
-  --stop-selected: #fb923c;
+  --stop-selected: #60a5fa;
   --glass-blur: saturate(180%) blur(24px);
   --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.5);
   --shadow-pill: 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -161,7 +161,7 @@ header h1 {
 
 .fav-pill.active {
   border-color: var(--border-active);
-  background: rgba(251, 146, 60, 0.14);
+  background: rgba(96, 165, 250, 0.14);
 }
 
 .fav-pill .fav-route { color: var(--text-primary); }
@@ -261,7 +261,7 @@ main {
 }
 .select-pill:focus-within {
   border-color: var(--border-active);
-  box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.18), var(--shadow-glass);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18), var(--shadow-glass);
 }
 
 .select-pill select {

@@ -42,7 +42,7 @@
     }
 
     var line = L.polyline(latlngs, {
-      color: '#fb923c',
+      color: '#60a5fa',
       weight: 5,
       opacity: 1,
       smoothFactor: 1,
@@ -50,8 +50,8 @@
       lineJoin: 'round'
     }).addTo(routeLayer);
 
-    L.circleMarker(latlngs[0], { radius: 5, color: '#fb923c', fillColor: '#fb923c', fillOpacity: 0.9, weight: 0 }).addTo(routeLayer);
-    L.circleMarker(latlngs[latlngs.length - 1], { radius: 5, color: '#fb923c', fillColor: '#fb923c', fillOpacity: 0.9, weight: 0 }).addTo(routeLayer);
+    L.circleMarker(latlngs[0], { radius: 5, color: '#60a5fa', fillColor: '#60a5fa', fillOpacity: 0.9, weight: 0 }).addTo(routeLayer);
+    L.circleMarker(latlngs[latlngs.length - 1], { radius: 5, color: '#60a5fa', fillColor: '#60a5fa', fillOpacity: 0.9, weight: 0 }).addTo(routeLayer);
   }
 
   function clearRoute() {
@@ -78,7 +78,7 @@
 
       var marker = L.circleMarker([s.lat, s.lon], {
         radius: isSelected ? 6 : 4,
-        fillColor: isSelected ? '#fb923c' : '#94a3b8',
+        fillColor: isSelected ? '#60a5fa' : '#94a3b8',
         color: 'white',
         weight: 1.5,
         fillOpacity: 1,
@@ -118,7 +118,7 @@
 
       var marker = L.circleMarker([s.lat, s.lon], {
         radius: isSelected ? 6 : 4,
-        fillColor: isSelected ? '#fb923c' : '#94a3b8',
+        fillColor: isSelected ? '#60a5fa' : '#94a3b8',
         color: 'white',
         weight: 1.5,
         fillOpacity: 1,
@@ -163,7 +163,7 @@
 
       var html = '<div class="bus-marker-inner" style="transform:rotate(' + rotation + 'deg)">' +
         '<svg width="36" height="36" viewBox="0 0 36 36">' +
-        '<circle cx="18" cy="18" r="13" fill="#fb923c"/>' +
+        '<circle cx="18" cy="18" r="13" fill="#60a5fa"/>' +
         '<polygon points="18,7 22.5,18 18,16 13.5,18" fill="white"/>' +
         '</svg></div>';
 
