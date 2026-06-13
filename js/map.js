@@ -5,7 +5,6 @@
   var routeLayer = null;
   var busLayer = null;
   var stopLayer = null;
-  var currentShapeBounds = null;
   var currentStops = [];
   var currentSelectedStopId = null;
 
@@ -18,7 +17,7 @@
       preferCanvas: true
     }).setView([3.139, 101.6869], 13);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> | &copy; <a href="https://carto.com/attributions">CARTO</a>'
     }).addTo(map);
@@ -35,7 +34,6 @@
 
   function drawRoute(shapePoints) {
     routeLayer.clearLayers();
-    currentShapeBounds = null;
     if (!shapePoints || shapePoints.length < 2) return;
 
     var latlngs = [];
@@ -44,22 +42,21 @@
     }
 
     var line = L.polyline(latlngs, {
-      color: '#e85d04',
+      color: '#fb923c',
       weight: 3.5,
-      opacity: 0.85,
+      opacity: 1,
       smoothFactor: 1,
       lineCap: 'round',
       lineJoin: 'round'
     }).addTo(routeLayer);
 
-    L.circleMarker(latlngs[0], { radius: 5, color: '#e85d04', fillColor: '#e85d04', fillOpacity: 0.9, weight: 0 }).addTo(routeLayer);
-    L.circleMarker(latlngs[latlngs.length - 1], { radius: 5, color: '#e85d04', fillColor: '#e85d04', fillOpacity: 0.9, weight: 0 }).addTo(routeLayer);
+    L.circleMarker(latlngs[0], { radius: 5, color: '#fb923c', fillColor: '#fb923c', fillOpacity: 0.9, weight: 0 }).addTo(routeLayer);
+    L.circleMarker(latlngs[latlngs.length - 1], { radius: 5, color: '#fb923c', fillColor: '#fb923c', fillOpacity: 0.9, weight: 0 }).addTo(routeLayer);
   }
 
   function clearRoute() {
     routeLayer.clearLayers();
     stopLayer.clearLayers();
-    currentShapeBounds = null;
     currentStops = [];
     currentSelectedStopId = null;
     map.setView([3.139, 101.6869], 13);
@@ -81,7 +78,7 @@
 
       var marker = L.circleMarker([s.lat, s.lon], {
         radius: isSelected ? 6 : 4,
-        fillColor: isSelected ? '#e85d04' : '#64748b',
+        fillColor: isSelected ? '#fb923c' : '#94a3b8',
         color: 'white',
         weight: 1.5,
         fillOpacity: 1,
@@ -121,7 +118,7 @@
 
       var marker = L.circleMarker([s.lat, s.lon], {
         radius: isSelected ? 6 : 4,
-        fillColor: isSelected ? '#e85d04' : '#64748b',
+        fillColor: isSelected ? '#fb923c' : '#94a3b8',
         color: 'white',
         weight: 1.5,
         fillOpacity: 1,
@@ -166,8 +163,8 @@
 
       var html = '<div class="bus-marker-inner" style="transform:rotate(' + rotation + 'deg)">' +
         '<svg width="32" height="32" viewBox="0 0 32 32">' +
-        '<circle cx="16" cy="16" r="11" fill="white" stroke="#e85d04" stroke-width="2.5"/>' +
-        '<polygon points="16,8 20,16 16,14 12,16" fill="#e85d04"/>' +
+        '<circle cx="16" cy="16" r="12" fill="#fb923c"/>' +
+        '<polygon points="10,9 22,16 10,23" fill="white"/>' +
         '</svg></div>';
 
       var popupContent = '<div class="bus-popup">' +
