@@ -62,7 +62,21 @@
         shapes[hid] = data.H[hid];
       }
 
-      var expanded = { routes: routes, stops: stops, trips: trips, shapes: shapes, _nameIndex: data.I };
+      var frequencies = {};
+      if (data.F) {
+        for (var rid in data.F) {
+          frequencies[rid] = data.F[rid].map(function(f) {
+            return {
+              start_seconds: f.s,
+              end_seconds: f.e,
+              headway_secs: f.h,
+              exact_times: f.x
+            };
+          });
+        }
+      }
+
+      var expanded = { routes: routes, stops: stops, trips: trips, shapes: shapes, frequencies: frequencies, _nameIndex: data.I };
 
       // Cache in localStorage
       try {

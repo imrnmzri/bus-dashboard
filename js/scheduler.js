@@ -246,27 +246,35 @@
     if (!shape) return null;
 
     var cumDist = buildCumDist(shape);
+    var totalKm = cumDist[cumDist.length - 1];
     var stop = staticData.stops ? staticData.stops[selectedStopId] : null;
     if (!stop) return null;
 
     var stopDist = getStopDistanceOnShape(selectedRouteId, selectedStopId, shape, cumDist, staticData);
     if (stopDist === null || stopDist === undefined) return null;
 
+    // Detect loop: shape start and end within 100m
+    var isLoop = haversine(shape[0].lat, shape[0].lng, shape[shape.length-1].lat, shape[shape.length-1].lng) < 0.1;
+
     // Find the first stop's shape distance to detect terminal-idling buses
     var firstStopDist = 0;
+    var lastStopDist = totalKm;
     var stops = getStopsForRoute(selectedRouteId, staticData, selectedStopId);
     if (stops.length > 0) {
       var fsd = getStopDistanceOnShape(selectedRouteId, stops[0].stop_id, shape, cumDist, staticData);
       if (fsd !== null && fsd !== undefined) firstStopDist = fsd;
+      var lsd = getStopDistanceOnShape(selectedRouteId, stops[stops.length-1].stop_id, shape, cumDist, staticData);
+      if (lsd !== null && lsd !== undefined) lastStopDist = lsd;
     }
 
     function isIdleAtTerminal(busSnap) {
-      // Bus within 500m of the first stop and barely moving = idling at terminal/depot
-      return Math.abs(busSnap.distance - firstStopDist) < 0.5;
+      // Within 500m of first stop, OR on loop routes: within 500m of last stop (same physical place)
+      if (Math.abs(busSnap.distance - firstStopDist) < 0.5) return true;
+      if (isLoop && Math.abs(busSnap.distance - lastStopDist) < 0.5) return true;
+      return false;
     }
 
     var best = null;
-    var bestIdle = null; // fallback: best idle bus if no moving buses exist
 
     for (var i = 0; i < vehicles.length; i++) {
       var v = vehicles[i];
@@ -274,15 +282,26 @@
 
       var busSnap = closestOnShape(v.lat, v.lng, shape, cumDist);
 
-      // Only consider buses approaching the stop (not past it)
-      if (busSnap.distance >= stopDist) continue;
-
       // Bus must be within 300m of the shape to be considered on route
       if (busSnap.snapDist > 0.3) continue;
 
       var isIdle = v.speed <= 3 && isIdleAtTerminal(busSnap);
+      if (isIdle) continue; // idle buses → schedule handles them
 
-      var remainingKm = stopDist - busSnap.distance;
+      // Compute remaining distance to stop. On loop routes, the bus may be
+      // past the stop in shape-distance but approaching on the next lap.
+      var remainingKm;
+      if (busSnap.distance <= stopDist) {
+        // Bus is before the stop in shape order
+        remainingKm = stopDist - busSnap.distance;
+      } else if (isLoop) {
+        // Loop route: bus is past the stop, approaching on next lap
+        remainingKm = (totalKm - busSnap.distance) + stopDist;
+      } else {
+        // Non-loop: bus has passed the stop, not coming back
+        continue;
+      }
+
       var speedKmh = v.speed > 3 ? v.speed : 25;
 
       // Apply a road factor: shape distance * 1.2 to account for deviations
@@ -293,24 +312,14 @@
         vehicleLabel: v.vehicle_label || '',
         remainingKm: remainingKm,
         speedKmh: speedKmh,
-        busDistance: busSnap.distance,
-        isIdle: isIdle
+        busDistance: busSnap.distance
       };
 
-      if (isIdle) {
-        // Track best idle bus as fallback, but don't include in normal best
-        if (!bestIdle || etaSeconds < bestIdle.seconds) {
-          bestIdle = candidate;
-        }
-      } else {
-        if (!best || etaSeconds < best.seconds) {
-          best = candidate;
-        }
+      if (!best || etaSeconds < best.seconds) {
+        best = candidate;
       }
     }
 
-    // If no moving buses found, fall back to best idle bus (bus waiting at terminal)
-    if (!best) best = bestIdle;
     if (!best) return null;
 
     var nowSec = getCurrentSeconds();
@@ -336,27 +345,72 @@
     if (!selectedRouteId || !selectedStopId) return null;
 
     var nowSeconds = getCurrentSeconds();
-    var lookahead = 26 * 3600;
-    var bestArrival = null;
 
+    // If frequencies exist, use headway-based departure instead of exact stop_times
+    var freqDeparture = null;
+    if (staticData.frequencies && staticData.frequencies[selectedRouteId]) {
+      var entries = staticData.frequencies[selectedRouteId];
+      var bestFreq = null;
+      for (var fi = 0; fi < entries.length; fi++) {
+        var f = entries[fi];
+        var windows = [
+          { s: f.start_seconds, e: f.end_seconds },
+          { s: f.start_seconds + 86400, e: f.end_seconds + 86400 }
+        ];
+        for (var w = 0; w < windows.length; w++) {
+          var ws = windows[w].s, we = windows[w].e;
+          if (ws > we) continue;
+          var k = Math.ceil((nowSeconds - ws) / f.headway_secs);
+          if (k < 0) k = 0;
+          var departure = ws + k * f.headway_secs;
+          if (departure >= nowSeconds && departure <= we) {
+            if (bestFreq === null || departure < bestFreq) bestFreq = departure;
+          }
+        }
+      }
+      if (bestFreq !== null) freqDeparture = bestFreq;
+    }
+
+    // Find which trip(s) serve this stop on this route, get the travel time from trip start
+    var tripTravelSeconds = null;
     for (var tid in staticData.trips) {
       var trip = staticData.trips[tid];
       if (trip.route_id !== selectedRouteId) continue;
       if (!trip.stop_times) continue;
-
       for (var j = 0; j < trip.stop_times.length; j++) {
-        var st = trip.stop_times[j];
-        if (st.stop_id !== selectedStopId) continue;
+        if (trip.stop_times[j].stop_id === selectedStopId) {
+          var tripStartSec = trip.stop_times[0].arrival_seconds;
+          var stopArrivalSec = trip.stop_times[j].arrival_seconds;
+          var travel = stopArrivalSec - tripStartSec;
+          if (travel < 0) travel += 86400;
+          if (tripTravelSeconds === null || travel < tripTravelSeconds) {
+            tripTravelSeconds = travel;
+          }
+          break;
+        }
+      }
+    }
 
-        var arrival = st.arrival_seconds;
-        // Normalize GTFS times that cross midnight (e.g., 25:30 = 91800 → 5400 = 1:30 AM)
-        if (arrival >= 86400) arrival = arrival % 86400;
-        // If this time has already passed today, wrap to tomorrow
-        if (arrival < nowSeconds) arrival += 86400;
+    var bestArrival = null;
 
-        if (arrival > nowSeconds && arrival < nowSeconds + lookahead) {
-          if (!bestArrival || arrival < bestArrival) {
-            bestArrival = arrival;
+    // Use frequency-based departure + travel time if available
+    if (freqDeparture !== null && tripTravelSeconds !== null) {
+      bestArrival = freqDeparture + tripTravelSeconds;
+    } else {
+      // Fall back to exact stop_times
+      var lookahead = 26 * 3600;
+      for (var tid in staticData.trips) {
+        var trip = staticData.trips[tid];
+        if (trip.route_id !== selectedRouteId) continue;
+        if (!trip.stop_times) continue;
+        for (var j = 0; j < trip.stop_times.length; j++) {
+          var st = trip.stop_times[j];
+          if (st.stop_id !== selectedStopId) continue;
+          var arrival = st.arrival_seconds;
+          if (arrival >= 86400) arrival = arrival % 86400;
+          if (arrival < nowSeconds) arrival += 86400;
+          if (arrival > nowSeconds && arrival < nowSeconds + lookahead) {
+            if (!bestArrival || arrival < bestArrival) bestArrival = arrival;
           }
         }
       }

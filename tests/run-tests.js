@@ -260,14 +260,14 @@ if (result1) {
   assert(!result1.isProjected, 'live ETA is not projected');
 }
 
-// Scenario 2: only idle bus at terminal → still returns result (fallback)
+// Scenario 2: only idle bus at terminal → should NOT return live ETA, falls to schedule
 var vehicles2 = [
   { route_id: 'R1', lat: 3.0001, lng: 101.0000, speed: 0, vehicle_label: 'IDLE_ONLY' }
 ];
 var result2 = R.getNextStop('R1', 'C', vehicles2, sd4);
 assert(result2 !== null, 'returns result when only idle bus exists');
 if (result2) {
-  assert(result2.vehicleLabel === 'IDLE_ONLY', 'falls back to idle bus when no moving buses');
+  assert(result2.isProjected === true, 'idle bus → falls to schedule, not live');
 }
 
 // Scenario 3: no buses at all → schedule fallback

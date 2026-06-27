@@ -33,12 +33,13 @@ async function downloadAndProcess(category) {
     parseCSV(zip, 'trips.txt'),
     parseCSV(zip, 'stop_times.txt'),
     parseCSV(zip, 'stops.txt'),
-    parseCSV(zip, 'shapes.txt')
+    parseCSV(zip, 'shapes.txt'),
+    parseCSV(zip, 'frequencies.txt')
   ]);
 
   return {
     routes: results[0], trips: results[1], stopTimes: results[2],
-    stops: results[3], shapes: results[4], category: category
+    stops: results[3], shapes: results[4], frequencies: results[5], category: category
   };
 }
 
@@ -106,6 +107,26 @@ function merge(all) {
     shapes[sid].sort(function(a, b) { return a.seq - b.seq; });
   }
 
+  // Frequencies — pre-resolve route_id and index by route
+  var freqByRoute = {};
+  var freqCount = 0;
+  all.forEach(function(r) {
+    r.frequencies.forEach(function(f) {
+      if (!f.trip_id || !f.headway_secs) return;
+      var trip = trips[f.trip_id];
+      var routeId = trip ? trip.r : null;
+      if (!routeId) return;
+      if (!freqByRoute[routeId]) freqByRoute[routeId] = [];
+      freqByRoute[routeId].push({
+        s: timeToSeconds(f.start_time),
+        e: timeToSeconds(f.end_time),
+        h: parseInt(f.headway_secs) || 0,
+        x: parseInt(f.exact_times) || 0
+      });
+      freqCount++;
+    });
+  });
+
   // Name index
   var nameIndex = {};
   for (var rid in routes) {
@@ -114,8 +135,8 @@ function merge(all) {
     if (routes[rid].ln) { nameIndex[routes[rid].ln] = rid; nameIndex[routes[rid].ln.toUpperCase()] = rid; }
   }
 
-  console.log('Merged: ' + Object.keys(routes).length + ' routes, ' + Object.keys(stops).length + ' stops, ' + Object.keys(trips).length + ' trips, ' + Object.keys(shapes).length + ' shapes');
-  return { R: routes, S: stops, T: trips, H: shapes, I: nameIndex };
+  console.log('Merged: ' + Object.keys(routes).length + ' routes, ' + Object.keys(stops).length + ' stops, ' + Object.keys(trips).length + ' trips, ' + Object.keys(shapes).length + ' shapes, ' + freqCount + ' frequencies on ' + Object.keys(freqByRoute).length + ' routes');
+  return { R: routes, S: stops, T: trips, H: shapes, F: freqByRoute, I: nameIndex };
 }
 
 async function main() {
