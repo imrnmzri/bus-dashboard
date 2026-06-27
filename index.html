@@ -73,13 +73,13 @@
 
   <div class="error-toast" id="error-toast"></div>
 
-  <script src="js/gtfs-static.js?v=9"></script>
-  <script src="js/favorites.js?v=9"></script>
-  <script src="js/live-socket.js?v=9"></script>
-  <script src="js/scheduler.js?v=9"></script>
-  <script src="js/map.js?v=9"></script>
-  <script src="js/ui.js?v=9"></script>
-  <script src="js/app.js?v=9"></script>
+  <script src="js/gtfs-static.js?v=10"></script>
+  <script src="js/favorites.js?v=10"></script>
+  <script src="js/live-socket.js?v=10"></script>
+  <script src="js/scheduler.js?v=10"></script>
+  <script src="js/map.js?v=10"></script>
+  <script src="js/ui.js?v=10"></script>
+  <script src="js/app.js?v=10"></script>
 
   <script>
     if ('serviceWorker' in navigator) {
@@ -90,9 +90,9 @@
         }
         return Promise.all(promises);
       }).then(function() {
-        return navigator.serviceWorker.register('/sw.js?v=9');
+        return navigator.serviceWorker.register('/sw.js?v=10');
       }).then(function() {
-        console.log('[sw] v9 registered');
+        console.log('[sw] v10 registered');
       }).catch(function(e) {
         console.warn('[sw] Registration:', e.message);
       });

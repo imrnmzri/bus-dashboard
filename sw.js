@@ -1,17 +1,17 @@
-var CACHE = 'rapidkl-v9';
+var CACHE = 'rapidkl-v10';
 
 // Assets to pre-cache on install
 var PRECACHE = [
   '/',
   '/index.html',
   '/css/style.css',
-  '/js/app.js?v=9',
-  '/js/gtfs-static.js?v=9',
-  '/js/favorites.js?v=9',
-  '/js/live-socket.js?v=9',
-  '/js/scheduler.js?v=9',
-  '/js/map.js?v=9',
-  '/js/ui.js?v=9',
+  '/js/app.js?v=10',
+  '/js/gtfs-static.js?v=10',
+  '/js/favorites.js?v=10',
+  '/js/live-socket.js?v=10',
+  '/js/scheduler.js?v=10',
+  '/js/map.js?v=10',
+  '/js/ui.js?v=10',
   '/assets/icon-180.png',
   '/assets/icon-512.png',
   '/data/static.json.gz'
