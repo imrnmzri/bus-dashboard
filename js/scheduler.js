@@ -288,17 +288,14 @@
       var isIdle = v.speed <= 3 && isIdleAtTerminal(busSnap);
       if (isIdle) continue; // idle buses → schedule handles them
 
-      // Compute remaining distance to stop. On loop routes, the bus may be
-      // past the stop in shape-distance but approaching on the next lap.
+      // Compute remaining distance to stop.
+      // On loop routes, if the bus has passed the stop it will not serve
+      // it again until the next scheduled cycle — let schedule handle it.
       var remainingKm;
       if (busSnap.distance <= stopDist) {
-        // Bus is before the stop in shape order
         remainingKm = stopDist - busSnap.distance;
-      } else if (isLoop) {
-        // Loop route: bus is past the stop, approaching on next lap
-        remainingKm = (totalKm - busSnap.distance) + stopDist;
       } else {
-        // Non-loop: bus has passed the stop, not coming back
+        // Bus has passed the stop — skip it, schedule will show next departure
         continue;
       }
 
