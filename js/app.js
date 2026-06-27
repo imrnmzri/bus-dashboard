@@ -1,6 +1,59 @@
 (function() {
   'use strict';
 
+  /**
+   * @typedef {{
+   *   route_id: string,
+   *   short_name: string,
+   *   long_name: string
+   * }} Route
+   *
+   * @typedef {{
+   *   stop_id: string,
+   *   name: string,
+   *   lat: number,
+   *   lon: number
+   * }} Stop
+   *
+   * @typedef {{
+   *   trip_id: string,
+   *   route_id: string,
+   *   shape_id: string|null,
+   *   direction_id: number,
+   *   stop_times: Array<{{ stop_id: string, arrival_seconds: number, departure_seconds: number, sequence: number }}>
+   * }} Trip
+   *
+   * @typedef {{
+   *   id: string,
+   *   bus_no: string,
+   *   route_id: string|null,
+   *   route_name: string,
+   *   lat: number,
+   *   lng: number,
+   *   bearing: number,
+   *   speed: number,
+   *   gps_time: string,
+   *   vehicle_label: string,
+   *   trip_status: string
+   * }} Vehicle
+   *
+   * @typedef {{
+   *   static: {{
+   *     routes: Object<string, Route>,
+   *     stops: Object<string, Stop>,
+   *     trips: Object<string, Trip>,
+   *     shapes: Object<string, Array<{{ lat: number, lng: number, seq: number }}>>,
+   *     _nameIndex: Object<string, string>
+   *   }}|null,
+   *   vehicles: Array<Vehicle>,
+   *   selectedRouteId: string|null,
+   *   selectedStopId: string|null,
+   *   lastRefresh: number|null,
+   *   errorCount: number
+   * }} AppState
+   */
+
+  /** @type {AppState} */
   var state = {
     static: null,
     vehicles: [],

@@ -2,7 +2,7 @@
 
 Live bus tracking dashboard for RapidKL. PWA for iPhone home screen.
 
-## Architecture (v7)
+## Architecture (v9)
 
 - **Hosting**: GitHub Pages
 - **Live data**: Prasarana Socket.io AVL (`rapidbus-socketio-avl.prasarana.com.my`)
@@ -23,16 +23,20 @@ Live bus tracking dashboard for RapidKL. PWA for iPhone home screen.
 bus-dashboard/
 ├── index.html              # SPA shell + PWA meta
 ├── manifest.json           # PWA manifest
-├── sw.js                   # Service worker (network-first)
-├── css/style.css           # Light theme, mobile-first
+├── sw.js                   # Service worker (pre-cache + network-first, skips live data)
+├── robots.txt              # Allow all crawlers
+├── package.json            # Dev scripts (test, serve, build-static)
+├── css/style.css           # Dark theme, mobile-first, glass-morphism
 ├── js/
-│   ├── app.js              # State, init, favorites, route resolution
+│   ├── app.js              # State, init, favorites, route resolution (+ JSDoc types)
 │   ├── gtfs-static.js      # Fetch static.json.gz → localStorage cache
 │   ├── live-socket.js      # Socket.io → pako decompress → live positions
-│   ├── scheduler.js        # Live ETA (shape distance) + schedule fallback
+│   ├── scheduler.js        # Live ETA (shape distance) + schedule fallback (+ caching)
 │   ├── map.js              # Leaflet map, route lines, bus markers with popups
 │   ├── ui.js               # Clock, dropdowns, status dots
 │   └── favorites.js        # Quick dial persistence (localStorage)
+├── tests/
+│   └── run-tests.js        # Unit tests (haversine, shape projection, caching, schedule ETA)
 ├── data/
 │   └── static.json.gz      # Pre-built GTFS data (routes, stops, trips, shapes)
 ├── scripts/
@@ -57,6 +61,12 @@ bus-dashboard/
 ```bash
 npx serve . -l 3000
 # Open http://localhost:3000
+```
+
+## Unit Tests
+
+```bash
+node tests/run-tests.js
 ```
 
 ## Build Static Data

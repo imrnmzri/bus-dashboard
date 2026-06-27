@@ -28,7 +28,14 @@
     return now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
   }
 
-  // Haversine distance in km between two lat/lng points
+  /**
+   * Haversine distance in km between two lat/lng points.
+   * @param {number} lat1
+   * @param {number} lon1
+   * @param {number} lat2
+   * @param {number} lon2
+   * @returns {number} Distance in kilometers
+   */
   function haversine(lat1, lon1, lat2, lon2) {
     var R = 6371;
     var dLat = (lat2 - lat1) * Math.PI / 180;
@@ -187,6 +194,13 @@
   function getRouteShape(routeId, staticData, stopId) {
     if (!staticData || !staticData.shapes || !staticData.trips) return null;
 
+    // Cache by (routeId, stopId) since stopId steers to a specific trip's shape
+    if (!staticData._shapeCache) staticData._shapeCache = {};
+    var cacheKey = routeId + '|' + (stopId || '');
+    if (staticData._shapeCache[cacheKey] !== undefined) {
+      return staticData._shapeCache[cacheKey];
+    }
+
     var anyShape = null;
 
     for (var tid in staticData.trips) {
@@ -202,12 +216,16 @@
         var times = staticData.trips[tid].stop_times;
         if (times) {
           for (var j = 0; j < times.length; j++) {
-            if (times[j].stop_id === stopId) return s;
+            if (times[j].stop_id === stopId) {
+              staticData._shapeCache[cacheKey] = s;
+              return s;
+            }
           }
         }
       }
     }
 
+    staticData._shapeCache[cacheKey] = anyShape;
     return anyShape;
   }
 
@@ -234,7 +252,21 @@
     var stopDist = getStopDistanceOnShape(selectedRouteId, selectedStopId, shape, cumDist, staticData);
     if (stopDist === null || stopDist === undefined) return null;
 
+    // Find the first stop's shape distance to detect terminal-idling buses
+    var firstStopDist = 0;
+    var stops = getStopsForRoute(selectedRouteId, staticData, selectedStopId);
+    if (stops.length > 0) {
+      var fsd = getStopDistanceOnShape(selectedRouteId, stops[0].stop_id, shape, cumDist, staticData);
+      if (fsd !== null && fsd !== undefined) firstStopDist = fsd;
+    }
+
+    function isIdleAtTerminal(busSnap) {
+      // Bus within 500m of the first stop and barely moving = idling at terminal/depot
+      return Math.abs(busSnap.distance - firstStopDist) < 0.5;
+    }
+
     var best = null;
+    var bestIdle = null; // fallback: best idle bus if no moving buses exist
 
     for (var i = 0; i < vehicles.length; i++) {
       var v = vehicles[i];
@@ -245,8 +277,10 @@
       // Only consider buses approaching the stop (not past it)
       if (busSnap.distance >= stopDist) continue;
 
-      // Bus must be within ~100m of the shape to be considered on route
-      if (busSnap.snapDist > 0.3) continue; // 300m max snap distance
+      // Bus must be within 300m of the shape to be considered on route
+      if (busSnap.snapDist > 0.3) continue;
+
+      var isIdle = v.speed <= 3 && isIdleAtTerminal(busSnap);
 
       var remainingKm = stopDist - busSnap.distance;
       var speedKmh = v.speed > 3 ? v.speed : 25;
@@ -254,17 +288,29 @@
       // Apply a road factor: shape distance * 1.2 to account for deviations
       var etaSeconds = (remainingKm * 1.2 / speedKmh) * 3600;
 
-      if (!best || etaSeconds < best.seconds) {
-        best = {
-          seconds: etaSeconds,
-          vehicleLabel: v.vehicle_label || '',
-          remainingKm: remainingKm,
-          speedKmh: speedKmh,
-          busDistance: busSnap.distance
-        };
+      var candidate = {
+        seconds: etaSeconds,
+        vehicleLabel: v.vehicle_label || '',
+        remainingKm: remainingKm,
+        speedKmh: speedKmh,
+        busDistance: busSnap.distance,
+        isIdle: isIdle
+      };
+
+      if (isIdle) {
+        // Track best idle bus as fallback, but don't include in normal best
+        if (!bestIdle || etaSeconds < bestIdle.seconds) {
+          bestIdle = candidate;
+        }
+      } else {
+        if (!best || etaSeconds < best.seconds) {
+          best = candidate;
+        }
       }
     }
 
+    // If no moving buses found, fall back to best idle bus (bus waiting at terminal)
+    if (!best) best = bestIdle;
     if (!best) return null;
 
     var nowSec = getCurrentSeconds();
@@ -303,8 +349,10 @@
         if (st.stop_id !== selectedStopId) continue;
 
         var arrival = st.arrival_seconds;
+        // Normalize GTFS times that cross midnight (e.g., 25:30 = 91800 → 5400 = 1:30 AM)
         if (arrival >= 86400) arrival = arrival % 86400;
-        if (arrival <= nowSeconds) arrival += 86400;
+        // If this time has already passed today, wrap to tomorrow
+        if (arrival < nowSeconds) arrival += 86400;
 
         if (arrival > nowSeconds && arrival < nowSeconds + lookahead) {
           if (!bestArrival || arrival < bestArrival) {
@@ -383,8 +431,10 @@
         for (var j = 0; j < trip.stop_times.length; j++) {
           var st = trip.stop_times[j];
           var arrival = st.arrival_seconds;
+          // Normalize GTFS times that cross midnight
           if (arrival >= 86400) arrival = arrival % 86400;
-          if (arrival <= nowSeconds) arrival += 86400;
+          // If this time has already passed today, wrap to tomorrow
+          if (arrival < nowSeconds) arrival += 86400;
 
           if (arrival > nowSeconds && arrival < nowSeconds + lookahead) {
             if (!best || arrival < best.arrival_seconds) {
@@ -466,10 +516,14 @@
     return Math.max(0, Math.round(diff / 60));
   }
 
-  // Return all stop -> shape distance mappings for a route
+  // Return all stop -> shape distance mappings for a route (cached)
   function getAllStopDistances(routeId, staticData, stopId) {
+    if (!staticData._allStopDistCache) staticData._allStopDistCache = {};
+    var cacheKey = routeId + '|' + (stopId || '');
+    if (staticData._allStopDistCache[cacheKey]) return staticData._allStopDistCache[cacheKey];
+
     var shape = getRouteShape(routeId, staticData, stopId);
-    if (!shape) return {};
+    if (!shape) { staticData._allStopDistCache[cacheKey] = {}; return {}; }
     var cumDist = buildCumDist(shape);
     var stops = getStopsForRoute(routeId, staticData, stopId);
     var result = {};
@@ -478,6 +532,7 @@
       var d = getStopDistanceOnShape(routeId, sid, shape, cumDist, staticData);
       if (d !== null && d !== undefined) result[sid] = d;
     }
+    staticData._allStopDistCache[cacheKey] = result;
     return result;
   }
 

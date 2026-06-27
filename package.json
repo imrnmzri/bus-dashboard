@@ -1,7 +1,17 @@
 {
+  "name": "rapidkl-bus-dashboard",
+  "version": "9.0.0",
   "private": true,
-  "dependencies": {
+  "description": "Live bus tracking dashboard for RapidKL",
+  "scripts": {
+    "test": "node tests/run-tests.js",
+    "build-static": "node scripts/build-static.js",
+    "serve": "npx serve . -l 3000"
+  },
+  "devDependencies": {
     "jszip": "^3.10.1",
-    "papaparse": "^5.5.3"
-  }
+    "papaparse": "^5.4.1"
+  },
+  "keywords": ["bus", "tracking", "rapidkl", "gtfs", "leaflet"],
+  "license": "MIT"
 }

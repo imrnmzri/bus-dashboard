@@ -74,7 +74,9 @@
       if (window.RapidKL && window.RapidKL.emit) {
         window.RapidKL.emit('vehicles-updated', vehicles);
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('[socket] Parse error:', e.message);
+    }
   }
 
   function emitReload() {
