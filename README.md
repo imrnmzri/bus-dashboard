@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="#"><strong>Open Dashboard</strong></a>
+  <a href="https://imrnmzri.github.io/bus-dashboard"><strong>Open Dashboard</strong></a>
   &nbsp;&middot;&nbsp;
   <a href="#install-as-an-app">Install as an App</a>
   &nbsp;&middot;&nbsp;
