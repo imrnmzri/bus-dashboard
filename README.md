@@ -5,106 +5,86 @@
 <h1 align="center">RapidKL Bus Tracker</h1>
 
 <p align="center">
-  <strong>Live bus tracking for Kuala Lumpur &mdash; free, fast, and installable as a native app.</strong>
+  <strong>Live bus tracking for Kuala Lumpur &mdash; see every bus on a map, get GPS-based ETAs, one tap from your home screen.</strong>
 </p>
 
 <p align="center">
-  <a href="https://imrnmzri.github.io/bus-dashboard"><strong>Open Dashboard</strong></a>
+  <a href="https://imrnmzri.github.io/bus-dashboard"><strong>Open the Dashboard</strong></a>
   &nbsp;&middot;&nbsp;
-  <a href="#install-as-an-app">Install as an App</a>
+  <a href="#save-it-to-your-phone">Save to Your Phone</a>
   &nbsp;&middot;&nbsp;
   <a href="#faq">FAQ</a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/buses_live-600+-green" alt="600+ live buses">
-  <img src="https://img.shields.io/badge/routes-218-blue" alt="218 routes">
-  <img src="https://img.shields.io/badge/data-open_data-red" alt="Open data">
+  <img src="https://img.shields.io/github/license/imrnmzri/bus-dashboard" alt="License">
+  <img src="https://img.shields.io/github/v/release/imrnmzri/bus-dashboard" alt="Release">
+  <img src="https://img.shields.io/github/deployments/imrnmzri/bus-dashboard/github-pages" alt="Pages">
 </p>
 
 ---
 
-## What is this?
+## What It Does
 
-Imagine standing at a bus stop wondering when the next bus will arrive. This dashboard shows you &mdash; in real time, on a map, for every RapidKL bus in Kuala Lumpur. It calculates the **minutes until your bus arrives** using actual GPS positions, not paper timetables.
+**See every bus on a live map.** Buses update every few seconds — tap any one to see its plate number, speed, and last location.
 
-No app store. No account. No ads. Just open the website and you're tracking.
+**GPS-based ETAs.** When a bus is on the road, the dashboard measures the actual road distance from the bus to your stop and converts it to minutes. No guesswork from a fixed timetable.
+
+**One tap from anywhere.** Save your regular route and stop once. After that, open the dashboard and tap your saved pill — you're looking at your next bus in seconds. No menus, no typing, no login.
+
+**Free. No ads. No app store.** Just a website that works on any phone, tablet, or desktop. Add it to your home screen and it opens fullscreen like any other app.
 
 ## How to Use
 
-<p align="center"><i>It takes 10 seconds.</i></p>
+### 1. Open the dashboard
+Tap the link above on your phone or desktop. Every active RapidKL bus appears on the map.
 
-**1. Open the dashboard** on your phone or desktop. You'll see every active RapidKL bus moving across the map.
+### 2. Choose your route
+Pick your bus from the dropdown. The map zooms in and draws the exact path it follows.
 
-**2. Pick a route.** Tap the dropdown and choose your bus line (like `300` or `T808`). The map zooms to that route and draws the exact path the bus follows.
+### 3. Choose your stop
+Select where you're waiting. The bottom bar shows minutes until the next bus.
 
-**3. Pick a stop.** After choosing a route, select your stop from the second dropdown. The bottom bar shows the **minutes until the next bus arrives**.
+### 4. Read the ETA
+**Green** means there's a bus on the road and the time is from its GPS. **White** means no bus is nearby, so it's showing the schedule.
 
-**4. Check the color.** The time turns <span style="color:#34d399">**green**</span> when it's calculated from an actual bus's GPS position. If it stays white, no bus is currently nearby so it falls back to the official timetable.
+### 5. Save your stop
+Tap the **+** to save this route and stop. It appears as a pill at the top — tap it anytime to jump straight back.
 
-**5. Save your combo.** Tap the **+** button to save your route &amp; stop to Quick Dial. Your favorites appear as pills at the top &mdash; one tap and you're back.
+### 6. Tap a bus
+Tap any bus icon on the map to see its plate number, speed, and last update.
 
-**6. Tap a bus.** Tap any bus marker on the map to see its plate number, last GPS ping, and speed.
+---
 
-## Install as an App
+## Save It to Your Phone
 
-No app store needed. The dashboard is a PWA &mdash; add it to your home screen and it works fullscreen, just like a native app.
+Works like a normal app — no app store required.
 
-**iPhone / iPad** &mdash; open in Safari, tap **Share**, then **Add to Home Screen**.
+| Platform | Steps |
+|----------|-------|
+| **iPhone / iPad** | Open in Safari → Tap **Share** → **Add to Home Screen** |
+| **Android** | Open in Chrome → Tap **⋮** → **Add to Home Screen** |
 
-**Android** &mdash; open in Chrome, tap the menu (**&vellip;**), then **Add to Home Screen**.
+It opens fullscreen without browser tabs or address bars. Works offline for schedules too.
 
-It opens without browser chrome, tabs, or address bar on either platform.
-
-## What It Tracks
-
-| | |
-|---|---|
-| **Live buses** | 600+ buses across 218 routes, positions refresh every ~5 seconds |
-| **GPS-based ETA** | Arrival time calculated from actual bus distance along the road to your stop |
-| **Timetable fallback** | When no bus is nearby, shows the next scheduled departure |
-| **Quick Dial** | Save your favorite route+stop combos for one-tap access |
-
-## Where The Data Comes From
-
-This dashboard runs on **public open data**. Nothing is scraped or reverse-engineered.
-
-| Data | Source | Freshness |
-|------|--------|-----------|
-| **Bus positions** | Prasarana live AVL feed | Every 5 seconds |
-| **Routes, stops, schedules** | Malaysia [Open API](https://developer.data.gov.my/) (GTFS) | Refreshed weekly |
-
-The bus positions stream from Prasarana's official real-time feed over WebSocket. Route maps and timetables come from Malaysia's open data portal, rebuilt automatically every week via a GitHub Action so you're never looking at stale schedules.
-
-The dashboard also connects smart &mdash; when you switch tabs or lock your phone, it disconnects from the live feed to save power. Reconnects the moment you come back.
-
-## Tech Stack
-
-Vanilla JavaScript, no frameworks. Served from GitHub Pages. Built with:
-
-- **Leaflet** for the map
-- **Socket.io** for real-time bus positions
-- **Pako** for decompressing data on the fly
-- **PWA** so it works offline and installs like an app
-
-Everything loads from CDN. The site is about 2.9 MB of compressed route data &mdash; cached for a week in your browser &mdash; so repeat visits are instant.
+---
 
 ## FAQ
 
-**Why is the time white instead of green?**
-Green means a bus is actively approaching your stop and the time is from its GPS. White means no bus is on that route nearby, so it's showing the timetable instead.
+**Why is the time white instead of green?**  
+Green means a bus is actually on the road heading toward you. White means no bus is currently nearby, so it's showing the official schedule instead.
 
-**Why are some buses missing?**
-The live feed may not include every bus at every instant. Switch to "All routes" to see everything available.
+**Does it work without internet?**  
+Schedules are saved on your phone. Live bus positions need a connection.
 
-**Does it work offline?**
-Route schedules are cached locally. Live bus positions need an internet connection.
+**Where does the data come from?**  
+Live bus positions come from Prasarana's official real-time feed. Routes and schedules come from Malaysia's [Open API](https://developer.data.gov.my/). Everything is public open data — nothing is scraped.
 
-**Who made this?**
-A bus rider who got tired of guessing. The code is open source (MIT) &mdash; contributions welcome.
+**Who made this?**  
+A bus rider who got tired of guessing whether to run for the stop or wait for the next one.
 
 ---
 
 <p align="center">
-  <sub>Built with &#129302; for everyone waiting at a bus stop. <a href="https://github.com/imrnmzri/bus-dashboard">Source on GitHub</a>.</sub>
+  <sub>MIT License &middot; <a href="https://github.com/imrnmzri/bus-dashboard">Source on GitHub</a></sub>
 </p>

@@ -29,6 +29,65 @@
   }
 
   /**
+   * Determine which service_ids are active today based on calendar data.
+   * Returns an object mapping service_id -> true for active services.
+   * Result is cached on staticData._activeServiceCache for the day.
+   */
+  function getActiveServiceIds(staticData) {
+    var now = new Date();
+    var todayStr = now.getFullYear() +
+      ('0' + (now.getMonth() + 1)).slice(-2) +
+      ('0' + now.getDate()).slice(-2);
+
+    // Bust cache if day changed
+    if (staticData._activeServiceDay === todayStr && staticData._activeServiceCache) {
+      return staticData._activeServiceCache;
+    }
+
+    var dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+    var todayDay = dayNames[now.getDay()];
+
+    var active = {};
+    var cal = staticData.calendar || {};
+    var calDates = staticData.calendarDates || {};
+
+    // Process weekly calendar entries
+    for (var sid in cal) {
+      var c = cal[sid];
+      if (c[todayDay] && todayStr >= c.start && todayStr <= c.end) {
+        active[sid] = true;
+      }
+    }
+
+    // Process calendar_dates exceptions (type 1 = added, 2 = removed)
+    for (var sid in calDates) {
+      var exceptions = calDates[sid];
+      for (var i = 0; i < exceptions.length; i++) {
+        if (exceptions[i].d === todayStr) {
+          if (exceptions[i].t === 1) { active[sid] = true; }
+          else if (exceptions[i].t === 2) { delete active[sid]; }
+        }
+      }
+    }
+
+    staticData._activeServiceDay = todayStr;
+    staticData._activeServiceCache = active;
+    return active;
+  }
+
+  /**
+   * Returns true if the trip is active today (or if no calendar data exists
+   * for this dataset, treat all trips as active).
+   */
+  function isTripActiveToday(trip, activeSvcs, staticData) {
+    // If dataset has no calendar data, all trips are active
+    if (!staticData.calendar && !staticData.calendarDates) return true;
+    // If trip has no service_id, treat as active (shouldn't happen)
+    if (!trip.service_id) return true;
+    return !!activeSvcs[trip.service_id];
+  }
+
+  /**
    * Haversine distance in km between two lat/lng points.
    * @param {number} lat1
    * @param {number} lon1
@@ -342,12 +401,38 @@
     if (!selectedRouteId || !selectedStopId) return null;
 
     var nowSeconds = getCurrentSeconds();
+    var lookahead = 26 * 3600;
+    var bestArrival = null;
 
-    // If frequencies exist, use headway-based departure instead of exact stop_times
-    var freqDeparture = null;
-    if (staticData.frequencies && staticData.frequencies[selectedRouteId]) {
+    // Determine which services are active today
+    var activeSvcs = getActiveServiceIds(staticData);
+
+    // FIRST: prefer exact stop_times from the GTFS trip schedule.
+    // These are the actual planned arrival times at each stop and are far
+    // more accurate than headway-based estimates (which assume constant
+    // intervals that rarely hold in practice).
+    for (var tid in staticData.trips) {
+      var trip = staticData.trips[tid];
+      if (trip.route_id !== selectedRouteId) continue;
+      if (!isTripActiveToday(trip, activeSvcs, staticData)) continue;
+      if (!trip.stop_times) continue;
+      for (var j = 0; j < trip.stop_times.length; j++) {
+        var st = trip.stop_times[j];
+        if (st.stop_id !== selectedStopId) continue;
+        var arrival = st.arrival_seconds;
+        if (arrival >= 86400) arrival = arrival % 86400;
+        if (arrival < nowSeconds) arrival += 86400;
+        if (arrival > nowSeconds && arrival < nowSeconds + lookahead) {
+          if (!bestArrival || arrival < bestArrival) bestArrival = arrival;
+        }
+      }
+    }
+
+    // SECOND: if no exact trips exist, fall back to frequency-based headway.
+    // This handles pure-frequency routes that provide no explicit trips.
+    if (!bestArrival && staticData.frequencies && staticData.frequencies[selectedRouteId]) {
       var entries = staticData.frequencies[selectedRouteId];
-      var bestFreq = null;
+      var freqDeparture = null;
       for (var fi = 0; fi < entries.length; fi++) {
         var f = entries[fi];
         var windows = [
@@ -361,54 +446,33 @@
           if (k < 0) k = 0;
           var departure = ws + k * f.headway_secs;
           if (departure >= nowSeconds && departure <= we) {
-            if (bestFreq === null || departure < bestFreq) bestFreq = departure;
+            if (freqDeparture === null || departure < freqDeparture) freqDeparture = departure;
           }
         }
       }
-      if (bestFreq !== null) freqDeparture = bestFreq;
-    }
 
-    // Find which trip(s) serve this stop on this route, get the travel time from trip start
-    var tripTravelSeconds = null;
-    for (var tid in staticData.trips) {
-      var trip = staticData.trips[tid];
-      if (trip.route_id !== selectedRouteId) continue;
-      if (!trip.stop_times) continue;
-      for (var j = 0; j < trip.stop_times.length; j++) {
-        if (trip.stop_times[j].stop_id === selectedStopId) {
-          var tripStartSec = trip.stop_times[0].arrival_seconds;
-          var stopArrivalSec = trip.stop_times[j].arrival_seconds;
-          var travel = stopArrivalSec - tripStartSec;
-          if (travel < 0) travel += 86400;
-          if (tripTravelSeconds === null || travel < tripTravelSeconds) {
-            tripTravelSeconds = travel;
+      if (freqDeparture !== null) {
+        // Estimate travel time from the trip's first stop to the selected stop
+        var tripTravelSeconds = null;
+        for (var tid in staticData.trips) {
+          var trip = staticData.trips[tid];
+          if (trip.route_id !== selectedRouteId) continue;
+          if (!trip.stop_times) continue;
+          for (var j = 0; j < trip.stop_times.length; j++) {
+            if (trip.stop_times[j].stop_id === selectedStopId) {
+              var tripStartSec = trip.stop_times[0].arrival_seconds;
+              var stopArrivalSec = trip.stop_times[j].arrival_seconds;
+              var travel = stopArrivalSec - tripStartSec;
+              if (travel < 0) travel += 86400;
+              if (tripTravelSeconds === null || travel < tripTravelSeconds) {
+                tripTravelSeconds = travel;
+              }
+              break;
+            }
           }
-          break;
         }
-      }
-    }
-
-    var bestArrival = null;
-
-    // Use frequency-based departure + travel time if available
-    if (freqDeparture !== null && tripTravelSeconds !== null) {
-      bestArrival = freqDeparture + tripTravelSeconds;
-    } else {
-      // Fall back to exact stop_times
-      var lookahead = 26 * 3600;
-      for (var tid in staticData.trips) {
-        var trip = staticData.trips[tid];
-        if (trip.route_id !== selectedRouteId) continue;
-        if (!trip.stop_times) continue;
-        for (var j = 0; j < trip.stop_times.length; j++) {
-          var st = trip.stop_times[j];
-          if (st.stop_id !== selectedStopId) continue;
-          var arrival = st.arrival_seconds;
-          if (arrival >= 86400) arrival = arrival % 86400;
-          if (arrival < nowSeconds) arrival += 86400;
-          if (arrival > nowSeconds && arrival < nowSeconds + lookahead) {
-            if (!bestArrival || arrival < bestArrival) bestArrival = arrival;
-          }
+        if (tripTravelSeconds !== null) {
+          bestArrival = freqDeparture + tripTravelSeconds;
         }
       }
     }
@@ -474,9 +538,12 @@
       var lookahead = 26 * 3600;
       var best = null;
 
+      var activeSvcs = getActiveServiceIds(staticData);
+
       for (var tid in staticData.trips) {
         var trip = staticData.trips[tid];
         if (trip.route_id !== selectedRouteId) continue;
+        if (!isTripActiveToday(trip, activeSvcs, staticData)) continue;
         if (!trip.stop_times || trip.stop_times.length === 0) continue;
 
         for (var j = 0; j < trip.stop_times.length; j++) {

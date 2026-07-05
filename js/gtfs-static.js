@@ -2,7 +2,7 @@
   'use strict';
 
   var DATA_URL = 'data/static.json.gz';
-  var CACHE_KEY = 'rapidkl-static-v7';
+  var CACHE_KEY = 'rapidkl-static-v8';
   var CACHE_MS = 7 * 24 * 60 * 60 * 1000;
 
   function loadStaticData() {
@@ -76,7 +76,7 @@
         }
       }
 
-      var expanded = { routes: routes, stops: stops, trips: trips, shapes: shapes, frequencies: frequencies, _nameIndex: data.I };
+      var expanded = { routes: routes, stops: stops, trips: trips, shapes: shapes, frequencies: frequencies, calendar: data.C, calendarDates: data.CD, _nameIndex: data.I };
 
       // Cache in localStorage
       try {

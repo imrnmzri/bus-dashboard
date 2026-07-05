@@ -34,12 +34,15 @@ async function downloadAndProcess(category) {
     parseCSV(zip, 'stop_times.txt'),
     parseCSV(zip, 'stops.txt'),
     parseCSV(zip, 'shapes.txt'),
-    parseCSV(zip, 'frequencies.txt')
+    parseCSV(zip, 'frequencies.txt'),
+    parseCSV(zip, 'calendar.txt'),
+    parseCSV(zip, 'calendar_dates.txt')
   ]);
 
   return {
     routes: results[0], trips: results[1], stopTimes: results[2],
-    stops: results[3], shapes: results[4], frequencies: results[5], category: category
+    stops: results[3], shapes: results[4], frequencies: results[5],
+    calendar: results[6], calendarDates: results[7], category: category
   };
 }
 
@@ -84,6 +87,7 @@ function merge(all) {
         r: t.route_id,
         sh: t.shape_id || null,
         d: parseInt(t.direction_id) || 0,
+        sv: t.service_id || '',
         st: stopTimesByTrip[t.trip_id] || []
       };
     });
@@ -136,7 +140,38 @@ function merge(all) {
   }
 
   console.log('Merged: ' + Object.keys(routes).length + ' routes, ' + Object.keys(stops).length + ' stops, ' + Object.keys(trips).length + ' trips, ' + Object.keys(shapes).length + ' shapes, ' + freqCount + ' frequencies on ' + Object.keys(freqByRoute).length + ' routes');
-  return { R: routes, S: stops, T: trips, H: shapes, F: freqByRoute, I: nameIndex };
+
+  // Calendar — weekly schedule per service_id
+  var calendar = {};
+  all.forEach(function(r) {
+    r.calendar.forEach(function(c) {
+      if (!c.service_id) return;
+      var entry = { start: (c.start_date || '') + '', end: (c.end_date || '') + '' };
+      var days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+      var short = ['mo','tu','we','th','fr','sa','su'];
+      for (var di = 0; di < days.length; di++) { entry[short[di]] = parseInt(c[days[di]]) || 0; }
+      calendar[c.service_id] = entry;
+    });
+    r.calendar = null;
+  });
+
+  // Calendar dates — exception dates per service_id
+  var calDates = {};
+  all.forEach(function(r) {
+    r.calendarDates.forEach(function(cd) {
+      if (!cd.service_id || !cd.date) return;
+      if (!calDates[cd.service_id]) calDates[cd.service_id] = [];
+      calDates[cd.service_id].push({
+        d: (cd.date || '') + '',
+        t: parseInt(cd.exception_type) || 0
+      });
+    });
+    r.calendarDates = null;
+  });
+
+  console.log('  Calendar: ' + Object.keys(calendar).length + ' services, ' + Object.keys(calDates).length + ' with exceptions');
+
+  return { R: routes, S: stops, T: trips, H: shapes, F: freqByRoute, I: nameIndex, C: calendar, CD: calDates };
 }
 
 async function main() {
