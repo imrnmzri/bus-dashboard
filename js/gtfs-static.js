@@ -2,7 +2,7 @@
   'use strict';
 
   var DATA_URL = 'data/static.json.gz';
-  var CACHE_KEY = 'rapidkl-static-v8';
+  var CACHE_KEY = 'rapidkl-static-v9';
   var CACHE_MS = 7 * 24 * 60 * 60 * 1000;
 
   function loadStaticData() {
@@ -53,6 +53,7 @@
           route_id: t.r,
           shape_id: t.sh,
           direction_id: t.d,
+          service_id: t.sv,
           stop_times: (t.st || []).map(function(st) {
             return { stop_id: st.s, arrival_seconds: st.a, departure_seconds: st.d, sequence: st.seq };
           })

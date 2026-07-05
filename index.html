@@ -33,7 +33,7 @@
             <span class="status-dot" id="stat-live" title="Live feed"></span>
             <span class="status-dot" id="stat-match" title="Trip match"></span>
           </div>
-          <div id="refresh-badge" title="v11">&#10227; --</div>
+          <div id="refresh-badge" title="v12">&#10227; --</div>
         </header>
 
         <div id="map-overlay">
@@ -73,13 +73,13 @@
 
   <div class="error-toast" id="error-toast"></div>
 
-  <script src="js/gtfs-static.js?v=11"></script>
-  <script src="js/favorites.js?v=11"></script>
-  <script src="js/live-socket.js?v=11"></script>
-  <script src="js/scheduler.js?v=11"></script>
-  <script src="js/map.js?v=11"></script>
-  <script src="js/ui.js?v=11"></script>
-  <script src="js/app.js?v=11"></script>
+  <script src="js/gtfs-static.js?v=12"></script>
+  <script src="js/favorites.js?v=12"></script>
+  <script src="js/live-socket.js?v=12"></script>
+  <script src="js/scheduler.js?v=12"></script>
+  <script src="js/map.js?v=12"></script>
+  <script src="js/ui.js?v=12"></script>
+  <script src="js/app.js?v=12"></script>
 
   <script>
     if ('serviceWorker' in navigator) {
@@ -90,9 +90,9 @@
         }
         return Promise.all(promises);
       }).then(function() {
-        return navigator.serviceWorker.register('/sw.js?v=11');
+        return navigator.serviceWorker.register('/sw.js?v=12');
       }).then(function() {
-        console.log('[sw] v11 registered');
+        console.log('[sw] v12 registered');
       }).catch(function(e) {
         console.warn('[sw] Registration:', e.message);
       });

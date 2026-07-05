@@ -44,7 +44,7 @@
       return staticData._activeServiceCache;
     }
 
-    var dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+    var dayNames = ['su', 'mo', 'tu', 'we', 'th', 'fr', 'sa'];
     var todayDay = dayNames[now.getDay()];
 
     var active = {};
@@ -407,34 +407,22 @@
     // Determine which services are active today
     var activeSvcs = getActiveServiceIds(staticData);
 
-    // FIRST: prefer exact stop_times from the GTFS trip schedule.
-    // These are the actual planned arrival times at each stop and are far
-    // more accurate than headway-based estimates (which assume constant
-    // intervals that rarely hold in practice).
-    for (var tid in staticData.trips) {
-      var trip = staticData.trips[tid];
-      if (trip.route_id !== selectedRouteId) continue;
-      if (!isTripActiveToday(trip, activeSvcs, staticData)) continue;
-      if (!trip.stop_times) continue;
-      for (var j = 0; j < trip.stop_times.length; j++) {
-        var st = trip.stop_times[j];
-        if (st.stop_id !== selectedStopId) continue;
-        var arrival = st.arrival_seconds;
-        if (arrival >= 86400) arrival = arrival % 86400;
-        if (arrival < nowSeconds) arrival += 86400;
-        if (arrival > nowSeconds && arrival < nowSeconds + lookahead) {
-          if (!bestArrival || arrival < bestArrival) bestArrival = arrival;
-        }
+    // Check if this route has frequency-based scheduling (exact_times=0).
+    // For these routes, the trip defines the stop-to-stop pattern and
+    // frequencies.txt defines the actual departure headway.
+    var isFrequencyBased = false;
+    if (staticData.frequencies && staticData.frequencies[selectedRouteId]) {
+      var freqEntries = staticData.frequencies[selectedRouteId];
+      for (var fe = 0; fe < freqEntries.length; fe++) {
+        if (freqEntries[fe].exact_times === 0) { isFrequencyBased = true; break; }
       }
     }
 
-    // SECOND: if no exact trips exist, fall back to frequency-based headway.
-    // This handles pure-frequency routes that provide no explicit trips.
-    if (!bestArrival && staticData.frequencies && staticData.frequencies[selectedRouteId]) {
-      var entries = staticData.frequencies[selectedRouteId];
+    if (isFrequencyBased) {
+      // Frequency-based: compute departures from headway
       var freqDeparture = null;
-      for (var fi = 0; fi < entries.length; fi++) {
-        var f = entries[fi];
+      for (var fi = 0; fi < freqEntries.length; fi++) {
+        var f = freqEntries[fi];
         var windows = [
           { s: f.start_seconds, e: f.end_seconds },
           { s: f.start_seconds + 86400, e: f.end_seconds + 86400 }
@@ -452,11 +440,12 @@
       }
 
       if (freqDeparture !== null) {
-        // Estimate travel time from the trip's first stop to the selected stop
+        // Find travel time from first stop to selected stop using active trips
         var tripTravelSeconds = null;
         for (var tid in staticData.trips) {
           var trip = staticData.trips[tid];
           if (trip.route_id !== selectedRouteId) continue;
+          if (!isTripActiveToday(trip, activeSvcs, staticData)) continue;
           if (!trip.stop_times) continue;
           for (var j = 0; j < trip.stop_times.length; j++) {
             if (trip.stop_times[j].stop_id === selectedStopId) {
@@ -473,6 +462,24 @@
         }
         if (tripTravelSeconds !== null) {
           bestArrival = freqDeparture + tripTravelSeconds;
+        }
+      }
+    } else {
+      // Timetabled: use exact stop_times from trips
+      for (var tid in staticData.trips) {
+        var trip = staticData.trips[tid];
+        if (trip.route_id !== selectedRouteId) continue;
+        if (!isTripActiveToday(trip, activeSvcs, staticData)) continue;
+        if (!trip.stop_times) continue;
+        for (var j = 0; j < trip.stop_times.length; j++) {
+          var st = trip.stop_times[j];
+          if (st.stop_id !== selectedStopId) continue;
+          var arrival = st.arrival_seconds;
+          if (arrival >= 86400) arrival = arrival % 86400;
+          if (arrival < nowSeconds) arrival += 86400;
+          if (arrival > nowSeconds && arrival < nowSeconds + lookahead) {
+            if (!bestArrival || arrival < bestArrival) bestArrival = arrival;
+          }
         }
       }
     }
