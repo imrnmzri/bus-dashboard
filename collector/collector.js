@@ -401,6 +401,26 @@ async function commitHeadways() {
 function startHealthServer() {
   var http = require('http');
   var server = http.createServer(function(req, res) {
+    if (req.url === '/debug') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      // Show per-route departure counts
+      var summary = {};
+      for (var key in departures) {
+        var counts = {};
+        for (var t in departures[key]) {
+          counts[t] = departures[key][t].length;
+        }
+        summary[key] = counts;
+      }
+      res.end(JSON.stringify({
+        routes: summary,
+        vehicleStates: Object.keys(vehicleStates).length + ' vehicles tracked',
+        operating: isOperatingHours(),
+        lastCommit: lastCommitDate || 'never'
+      }, null, 2));
+      return;
+    }
+
     res.writeHead(200);
     res.end(JSON.stringify({
       status: 'ok',
