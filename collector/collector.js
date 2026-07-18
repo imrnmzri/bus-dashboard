@@ -236,12 +236,72 @@ function dedupeArray(arr, minGapSec) {
 // ─── Socket.IO connection ───
 
 function decompressAndParse(raw) {
-  var inflated = pako.inflate(Buffer.from(raw, 'base64'));
-  var text = inflated.toString('utf8');
-  return JSON.parse(text);
+  console.log('[socket] raw type: ' + typeof raw + ', length: ' +
+    (typeof raw === 'string' ? raw.length : (raw ? raw.length || Object.keys(raw).length : 'null')));
+  var bytes;
+  if (typeof raw === 'string') {
+    // Browser-style: base64 string → binary string → bytes
+    var binary = '';
+    try {
+      binary = Buffer.from(raw, 'base64').toString('binary');
+    } catch (e) {
+      // If that fails, try treating as already-decoded
+      binary = raw;
+    }
+    bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  } else if (Buffer.isBuffer(raw)) {
+    bytes = raw;
+  } else if (raw instanceof Uint8Array) {
+    bytes = raw;
+  } else {
+    console.error('[socket] unknown raw type, skipping');
+    return {};
+  }
+
+  var inflated;
+  try {
+    inflated = pako.inflate(bytes);
+  } catch (e) {
+    console.error('[socket] pako.inflate failed: ' + e.message + ', bytes length: ' + bytes.length);
+    // Try ungzip as fallback
+    try {
+      inflated = pako.ungzip(bytes);
+      console.log('[socket] ungzip succeeded');
+    } catch (e2) {
+      console.error('[socket] ungzip also failed');
+      return {};
+    }
+  }
+
+  var text = '';
+  for (var j = 0; j < inflated.length; j++) text += String.fromCharCode(inflated[j]);
+
+  var data = JSON.parse(text);
+  var count = Object.keys(data).length;
+  if (count > 0) {
+    var firstKey = Object.keys(data)[0];
+    var firstBus = data[firstKey];
+    console.log('[socket] parsed ' + count + ' vehicles, first: ' +
+      (firstBus.bus_no || firstKey) + ' route=' + (firstBus.route || '?') +
+      ' lat=' + firstBus.latitude + ' lng=' + firstBus.longitude + ' speed=' + firstBus.speed);
+  } else {
+    console.log('[socket] parsed 0 vehicles');
+  }
+  return data;
 }
 
+var snapshotCount = 0;
+var totalProcessed = 0;
+var totalSkippedNoRoute = 0;
+var totalSkippedNoFreq = 0;
+var totalSkippedNoInfo = 0;
+
 function processVehicleSnapshot(data) {
+  snapshotCount++;
+  var inCount = Object.keys(data).length;
+  var processed = 0;
+
   for (var key in data) {
     var b = data[key];
     if (!b) continue;
@@ -257,6 +317,17 @@ function processVehicleSnapshot(data) {
       lng: lng,
       speed: parseInt(b.speed) || 0
     });
+    processed++;
+  }
+
+  totalProcessed += processed;
+
+  // Log stats every 100 snapshots
+  if (snapshotCount % 100 === 1) {
+    console.log('[stats] snapshot #' + snapshotCount + ': ' + inCount + ' incoming, ' +
+      processed + ' valid, ' + totalProcessed + ' total processed, ' +
+      Object.keys(vehicleStates).length + ' vehicles tracked, ' +
+      Object.keys(departures).length + ' routes with departures');
   }
 }
 
@@ -276,6 +347,18 @@ function connectSocket() {
     } catch (e) {
       console.error('[socket] parse error:', e.message);
     }
+  });
+
+  socket.on('connect_error', function(err) {
+    console.error('[socket] connect error:', err.message);
+  });
+
+  socket.on('error', function(err) {
+    console.error('[socket] error:', err);
+  });
+
+  socket.on('reconnect_attempt', function() {
+    console.log('[socket] reconnect attempt');
   });
 
   socket.on('disconnect', function(reason) {
@@ -415,6 +498,8 @@ function startHealthServer() {
       res.end(JSON.stringify({
         routes: summary,
         vehicleStates: Object.keys(vehicleStates).length + ' vehicles tracked',
+        snapshots: snapshotCount + ' snapshots received',
+        vehiclesProcessed: totalProcessed,
         operating: isOperatingHours(),
         lastCommit: lastCommitDate || 'never'
       }, null, 2));
