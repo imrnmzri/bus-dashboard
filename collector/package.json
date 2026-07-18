@@ -1,0 +1,12 @@
+{
+  "name": "bus-dashboard-collector",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node collector.js"
+  },
+  "dependencies": {
+    "pako": "^2.1.0",
+    "socket.io-client": "^4.8.0"
+  }
+}
