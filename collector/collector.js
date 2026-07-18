@@ -27,12 +27,18 @@ var GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 var REPO = process.env.REPO || 'imrnmzri/bus-dashboard';
 var HEADWAYS_PATH = 'data/headways.json';
 
+// MYT = UTC+8. Operating hours: 6AM–12AM MYT = 22:00–16:00 UTC
+function isOperatingHours() {
+  var h = new Date().getUTCHours();
+  return h >= 22 || h < 16;
+}
+
 // ─── Load static data ───
 
 var staticData = null;
 
 function loadStaticData() {
-  var buf = fs.readFileSync('data/static.json.gz');
+  var buf = fs.readFileSync('../data/static.json.gz');
   var raw = zlib.gunzipSync(buf).toString('utf8');
   var compact = JSON.parse(raw);
   staticData = compact;
@@ -165,6 +171,9 @@ function classifyVehicle(v, routeId, directionId) {
 }
 
 function processVehicle(v) {
+  // Skip outside operating hours (6AM–12AM MYT)
+  if (!isOperatingHours()) return;
+
   // Resolve route
   var routeId = resolveRouteId(v.route_id);
   if (!routeId) return;
@@ -396,6 +405,7 @@ function startHealthServer() {
     res.end(JSON.stringify({
       status: 'ok',
       uptime: Math.floor(process.uptime()),
+      operating: isOperatingHours(),
       departures: Object.keys(departures).length + ' routes tracked',
       lastCommit: lastCommitDate || 'never'
     }));
