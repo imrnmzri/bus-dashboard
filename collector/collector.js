@@ -164,7 +164,7 @@ function classifyVehicle(v, routeId, directionId) {
   if (v.speed <= 3 && nearTerminal && distFromFirst < 0.1) {
     return { state: 'IDLE', distFromFirst: distFromFirst };
   }
-  if (v.speed > 3 && (distFromFirst > 0.02 || v.speed > 8)) {
+  if (v.speed > 15 && (distFromFirst > 0.02 || v.speed > 15)) {
     return { state: 'MOVING', distFromFirst: distFromFirst };
   }
   return { state: 'TRANSITION', distFromFirst: distFromFirst };
@@ -180,9 +180,6 @@ function processVehicle(v) {
 
   // Direction: "01" → 1, "02" → 0
   var directionId = v.dir === '02' ? 0 : 1;
-
-  // Only track frequency-based routes
-  if (!staticData.F || !staticData.F[routeId]) return;
 
   var info = getRouteInfo(routeId, directionId);
   if (!info) return;
@@ -462,7 +459,9 @@ async function commitHeadways() {
   var putBody = {
     message: 'update headways [' + todayStr + ']',
     content: encoded,
-    branch: 'main'
+    branch: 'main',
+    author: { name: 'github-actions[bot]', email: 'github-actions[bot]@users.noreply.github.com' },
+    committer: { name: 'github-actions[bot]', email: 'github-actions[bot]@users.noreply.github.com' }
   };
 
   if (existing.status === 200 && existing.body.sha) {

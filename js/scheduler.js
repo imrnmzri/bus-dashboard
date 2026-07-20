@@ -28,6 +28,67 @@
     return now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
   }
 
+  function loadLearnedHeadways(staticData) {
+    var cacheKey = 'rapidkl-headways';
+    var maxAge = 24 * 60 * 60 * 1000;
+    try {
+      var raw = localStorage.getItem(cacheKey);
+      if (raw) {
+        var cached = JSON.parse(raw);
+        if (cached.t && (Date.now() - cached.t) < maxAge) {
+          staticData._headways = cached.d;
+          return Promise.resolve(cached.d);
+        }
+      }
+    } catch (e) {}
+    return fetch('data/headways.json').then(function(resp) {
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      return resp.json();
+    }).then(function(data) {
+      staticData._headways = data;
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify({ t: Date.now(), d: data }));
+      } catch (e) {}
+      return data;
+    }).catch(function() {
+      staticData._headways = {};
+      return {};
+    });
+  }
+
+  function getLearnedHeadway(routeDirKey, type, data, nowEpoch) {
+    var list = (data[routeDirKey] && data[routeDirKey][type]) || [];
+    if (list.length < 10) return null;
+    var qDate = new Date(nowEpoch || Date.now());
+    var qDaySec = qDate.getHours() * 3600 + qDate.getMinutes() * 60 + qDate.getSeconds();
+    var nearby = [];
+    for (var i = 0; i < list.length; i++) {
+      var ts = list[i];
+      var d = new Date(ts * 1000);
+      var daySec = d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+      if (Math.abs(daySec - qDaySec) <= 1800) {
+        nearby.push({ dateKey: d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2), daySec: daySec });
+      }
+    }
+    if (nearby.length < 3) return null;
+    var groups = {};
+    for (var j = 0; j < nearby.length; j++) {
+      var n = nearby[j];
+      if (!groups[n.dateKey]) groups[n.dateKey] = [];
+      groups[n.dateKey].push(n.daySec);
+    }
+    var allGaps = [];
+    for (var dk in groups) {
+      var dayDep = groups[dk].sort(function(a, b) { return a - b; });
+      for (var g = 1; g < dayDep.length; g++) {
+        var gap = dayDep[g] - dayDep[g - 1];
+        if (gap > 0 && gap < 7200) allGaps.push(gap);
+      }
+    }
+    if (allGaps.length < 10) return null;
+    return allGaps.reduce(function(a, b) { return a + b; }, 0) / allGaps.length;
+  }
+
   /**
    * Determine which service_ids are active today based on calendar data.
    * Returns an object mapping service_id -> true for active services.
@@ -420,9 +481,19 @@
 
     if (isFrequencyBased) {
       // Frequency-based: compute departures from headway
+      var nowEpoch = Math.floor(Date.now() / 1000);
+      var dayOfWeek = new Date().getDay();
+      var isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      var headwayType = isWeekend ? 'weekend' : 'weekday';
       var freqDeparture = null;
       for (var fi = 0; fi < freqEntries.length; fi++) {
         var f = freqEntries[fi];
+        var headwaySecs = f.headway_secs;
+        if (staticData._headways) {
+          var lh0 = getLearnedHeadway(selectedRouteId + '_0', headwayType, staticData._headways, nowEpoch);
+          var lh1 = getLearnedHeadway(selectedRouteId + '_1', headwayType, staticData._headways, nowEpoch);
+          if (lh0 || lh1) headwaySecs = lh0 || lh1;
+        }
         var windows = [
           { s: f.start_seconds, e: f.end_seconds },
           { s: f.start_seconds + 86400, e: f.end_seconds + 86400 }
@@ -430,9 +501,9 @@
         for (var w = 0; w < windows.length; w++) {
           var ws = windows[w].s, we = windows[w].e;
           if (ws > we) continue;
-          var k = Math.ceil((nowSeconds - ws) / f.headway_secs);
+          var k = Math.ceil((nowSeconds - ws) / headwaySecs);
           if (k < 0) k = 0;
-          var departure = ws + k * f.headway_secs;
+          var departure = ws + k * headwaySecs;
           if (departure >= nowSeconds && departure <= we) {
             if (freqDeparture === null || departure < freqDeparture) freqDeparture = departure;
           }
@@ -666,4 +737,5 @@
   window.RapidKL.getStopsForRoute = getStopsForRoute;
   window.RapidKL.getTimeUntil = getTimeUntil;
   window.RapidKL.getAllStopDistances = getAllStopDistances;
+  window.RapidKL.loadLearnedHeadways = loadLearnedHeadways;
 })();
