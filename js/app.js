@@ -369,7 +369,6 @@
         state.static = data;
         console.log('[app] ' + Object.keys(data.routes).length + ' routes');
 
-        RapidKL.loadLearnedHeadways(data);
 
         RapidKL.initMap();
         populateRouteDropdown();
