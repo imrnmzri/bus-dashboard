@@ -10,8 +10,15 @@
   },
   "devDependencies": {
     "jszip": "^3.10.1",
-    "papaparse": "^5.4.1"
+    "papaparse": "^5.4.1",
+    "sharp": "^0.35.3"
   },
-  "keywords": ["bus", "tracking", "rapidkl", "gtfs", "leaflet"],
+  "keywords": [
+    "bus",
+    "tracking",
+    "rapidkl",
+    "gtfs",
+    "leaflet"
+  ],
   "license": "MIT"
 }
