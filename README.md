@@ -67,7 +67,6 @@ It opens fullscreen without browser tabs or address bars. Schedule data is cache
 - **Routes, stops, and schedules** come from Malaysia's [Open API](https://developer.data.gov.my/) GTFS data, refreshed weekly and compressed for offline use.
 - **GPS-based ETAs** measure road distance from each bus to your stop using Haversine calculation along route shape polylines, with a 1.2x road factor to account for path deviations.
 - **Schedule fallback** uses GTFS data — exact `stop_times` for timetabled routes, or frequency intervals (`frequencies.txt`) for headway-based routes — filtered by the active service day.
-- **Departure collection** runs on a separate Render service, observing bus movements 24/7 and committing observed headways back to this repo daily.
 - **Offline support** — schedule data and the app shell are cached via service worker. Only live positions need a connection.
 
 
@@ -83,7 +82,7 @@ Green times account for the bus's actual speed and road distance. They're as acc
 Schedules are cached on your phone and work offline. Live bus positions and the map tiles need a connection.
 
 **Where does the data come from?**
-Live bus positions come from Prasarana's real-time feed. Routes, stops, and timetables come from Malaysia's Open API GTFS data. The map uses CARTO Voyager tiles.
+Live bus positions come from Prasarana's real-time feed. Routes, stops, and timetables come from Malaysia's Open API GTFS data. The map uses OpenStreetMap tiles — no API key required.
 
 **Who made this?**
 A bus rider who got tired of guessing whether to run for the stop or wait for the next one.

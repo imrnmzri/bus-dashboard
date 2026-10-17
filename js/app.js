@@ -342,7 +342,7 @@
 
   function init() {
     try {
-      console.log('[app] v12');
+      console.log('[app] v13');
       RapidKL.showLoading(true, 'Loading data...');
       updateRefreshBadge();
       setInterval(updateRefreshBadge, 1000);
